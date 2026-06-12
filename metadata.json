@@ -1,0 +1,6 @@
+{
+  "name": "Siyaset Simülatörü",
+  "description": "Seçimlere kadar siyasi partinizi yönettiğiniz, ittifaklar kurduğunuz ve Türkiye haritasında seçim gecesinin heyecanını yaşadığınız bir siyaset simülasyonu oyunu.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

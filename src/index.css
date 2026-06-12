@@ -1,0 +1,59 @@
+@import "tailwindcss";
+
+@keyframes steamRise {
+  0% {
+    transform: translateY(1px) scaleX(0.9);
+    opacity: 0;
+  }
+  15% {
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(-6px) scaleX(1.25);
+    opacity: 0.35;
+  }
+  100% {
+    transform: translateY(-13px) scaleX(0.7);
+    opacity: 0;
+  }
+}
+
+.animate-steam-1 {
+  animation: steamRise 2.2s infinite ease-in-out;
+}
+.animate-steam-2 {
+  animation: steamRise 2.8s infinite ease-in-out 0.5s;
+}
+.animate-steam-3 {
+  animation: steamRise 1.9s infinite ease-in-out 0.9s;
+}
+
+/* Custom Scrollbar styling for a high-tech modern finish */
+.scrollable-content::-webkit-scrollbar {
+  width: 6px;
+}
+.scrollable-content::-webkit-scrollbar-track {
+  background: rgba(15, 23, 42, 0.4);
+}
+.scrollable-content::-webkit-scrollbar-thumb {
+  background: rgba(120, 113, 108, 0.3);
+  border-radius: 9999px;
+}
+.scrollable-content::-webkit-scrollbar-thumb:hover {
+  background: rgba(245, 158, 11, 0.5);
+}
+
+/* Smooth custom pulse shadows */
+.pulse-glow-amber {
+  box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+  animation: pulseAmber 2.5s infinite;
+}
+
+@keyframes pulseAmber {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(245, 158, 11, 0.15);
+  }
+  50% {
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.35);
+  }
+}
