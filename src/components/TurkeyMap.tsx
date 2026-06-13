@@ -1,4 +1,4 @@
-import { useState, MouseEvent } from 'react';
+import { useState, MouseEvent, TouchEvent } from 'react';
 import { Region, Province, Party } from '../types';
 import { regions } from '../data/regions';
 import { Landmark, MapPin, Users, Award, Info, Sparkles } from 'lucide-react';
@@ -113,8 +113,8 @@ export default function TurkeyMap({
     }
   });
 
-  // Handle click on map container using event bubbling
-  const handleMapClick = (event: MouseEvent<HTMLDivElement>) => {
+  // Handle click or touch on map container using event bubbling
+  const handleMapInteraction = (event: MouseEvent<HTMLDivElement> | TouchEvent<HTMLDivElement>) => {
     const target = event.target as SVGElement;
     if (target && target.tagName?.toLowerCase() === 'path') {
       const parent = target.parentNode as SVGElement;
@@ -124,6 +124,9 @@ export default function TurkeyMap({
           const plateId = parseInt(plate, 10);
           const foundProvince = provinces.find(p => p.id === plateId);
           if (foundProvince) {
+            event.preventDefault();
+            event.stopPropagation();
+            playSound.playClick();
             onSelectProvince(foundProvince.id);
             onSelectRegion(foundProvince.regionId);
           }
@@ -211,7 +214,8 @@ export default function TurkeyMap({
       {/* SVG Interactive Map Wrapper with custom inline css override injects */}
       <div 
         className="relative w-full turkey-interactive-map-container overflow-hidden bg-slate-950/60 border border-slate-900 rounded-2xl p-4 flex justify-center items-center shadow-inner"
-        onClick={handleMapClick}
+        onClick={handleMapInteraction}
+        onTouchStart={handleMapInteraction}
       >
         <style>{`
           .turkey-interactive-map-container svg {

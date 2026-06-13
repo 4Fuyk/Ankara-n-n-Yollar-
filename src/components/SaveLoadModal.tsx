@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Save, FolderOpen, Trash2, X, Shield, Calendar, Award, Landmark, RefreshCw, CircleAlert } from 'lucide-react';
 import { GameState } from '../types';
 import { playSound } from '../utils/audio';
+import { saveManager } from '../utils/saveManager';
 
 interface SaveSlot {
   slotId: number;
@@ -38,7 +39,7 @@ export default function SaveLoadModal({
   const loadSlotsFromStorage = () => {
     const loadedSlots: SaveSlot[] = [];
     for (let i = 1; i <= 5; i++) {
-      const dataStr = localStorage.getItem(`secim_sim_save_slot_${i}`);
+      const dataStr = saveManager.getItem(`secim_sim_save_slot_${i}`);
       if (dataStr) {
         try {
           const parsed = JSON.parse(dataStr);
@@ -77,7 +78,7 @@ export default function SaveLoadModal({
       gameState: currentGameState
     };
 
-    localStorage.setItem(`secim_sim_save_slot_${slotId}`, JSON.stringify(saveObj));
+    saveManager.setItem(`secim_sim_save_slot_${slotId}`, JSON.stringify(saveObj));
     loadSlotsFromStorage();
   };
 
@@ -94,7 +95,7 @@ export default function SaveLoadModal({
     e.stopPropagation();
     playSound.playClick();
     if (confirm(`Slot ${slotId} içindeki kayıtlı oyunu silmek istediğinize emin misiniz?`)) {
-      localStorage.removeItem(`secim_sim_save_slot_${slotId}`);
+      saveManager.removeItem(`secim_sim_save_slot_${slotId}`);
       loadSlotsFromStorage();
     }
   };

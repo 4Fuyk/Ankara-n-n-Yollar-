@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Party, Province, PoliticalEvent, GameLog, Region, Alliance } from '../types';
 import TurkeyMap from './TurkeyMap';
 import DiplomacyPanel from './DiplomacyPanel';
@@ -79,6 +79,33 @@ export default function MainDashboard({
   const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(playSound.enabled);
 
+  const [, setTick] = useState(0);
+  const forceUpdate = () => setTick(t => t + 1);
+
+  // A bulletproof desktop/mobile unified click + touch event binder
+  // This uses onTouchStart on touchscreens with preventDefault to completely bypass the 
+  // 300ms delay and hover-lock traps on mobile Chrome and webviews, while supporting normal mouse clicks on laptops.
+  const bindTouchOrClick = (action: () => void, disabled?: boolean) => {
+    return {
+      onClick: (e: React.MouseEvent) => {
+        if (disabled) return;
+        e.preventDefault();
+        e.stopPropagation();
+        playSound.playClick();
+        action();
+        forceUpdate();
+      },
+      onTouchStart: (e: React.TouchEvent) => {
+        if (disabled) return;
+        e.preventDefault();
+        e.stopPropagation();
+        playSound.playClick();
+        action();
+        forceUpdate();
+      }
+    };
+  };
+
   const playerParty = parties.find(p => p.isPlayer);
   if (!playerParty) return null;
 
@@ -94,7 +121,6 @@ export default function MainDashboard({
   const toggleSound = () => {
     playSound.enabled = !playSound.enabled;
     setSoundEnabled(playSound.enabled);
-    playSound.playClick();
   };
 
   const handleRallyClick = () => {
@@ -134,7 +160,7 @@ export default function MainDashboard({
               
               {/* Grand Synthesized Sound control toggle */}
               <button
-                onClick={toggleSound}
+                {...bindTouchOrClick(toggleSound)}
                 className="flex items-center gap-1.5 p-1 px-2.5 bg-slate-950/50 hover:bg-slate-800 text-slate-400 hover:text-slate-200 rounded-lg border border-slate-800 hover:border-slate-700 transition-all cursor-pointer select-none ml-2"
                 title={soundEnabled ? "Sesi Kapat" : "Sesi Aç"}
               >
@@ -154,7 +180,7 @@ export default function MainDashboard({
               {/* Game Save/Load state trigger button */}
               {onOpenSaveLoad && (
                 <button
-                  onClick={() => { playSound.playClick(); onOpenSaveLoad(); }}
+                  {...bindTouchOrClick(onOpenSaveLoad)}
                   className="flex items-center gap-1.5 p-1 px-2.5 bg-indigo-950/30 hover:bg-indigo-900/40 text-indigo-400 hover:text-indigo-200 rounded-lg border border-indigo-900/30 hover:border-indigo-700/50 transition-all cursor-pointer select-none ml-2"
                   title="Oyunu Kaydet / Yükle"
                 >
@@ -207,7 +233,7 @@ export default function MainDashboard({
         {/* Action Grid buttons */}
         <div className="grid grid-cols-2 lg:grid-cols-6 gap-3">
           <button
-            onClick={handleRallyClick}
+            {...bindTouchOrClick(handleRallyClick, currentEvent !== null)}
             disabled={currentEvent !== null}
             className="group flex flex-col items-center justify-center p-3 bg-slate-950/40 hover:bg-slate-950 border border-slate-850 hover:border-slate-700 rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
           >
@@ -217,7 +243,7 @@ export default function MainDashboard({
           </button>
 
           <button
-            onClick={() => onCampaignAction('REKLAM')}
+            {...bindTouchOrClick(() => onCampaignAction('REKLAM'), currentEvent !== null || playerParty.budget < AD_COST)}
             disabled={currentEvent !== null || playerParty.budget < AD_COST}
             className="group flex flex-col items-center justify-center p-3 bg-slate-950/40 hover:bg-slate-950 border border-slate-850 hover:border-slate-700 rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
           >
@@ -227,7 +253,7 @@ export default function MainDashboard({
           </button>
 
           <button
-            onClick={() => onCampaignAction('TV')}
+            {...bindTouchOrClick(() => onCampaignAction('TV'), currentEvent !== null || playerParty.budget < TV_COST)}
             disabled={currentEvent !== null || playerParty.budget < TV_COST}
             className="group flex flex-col items-center justify-center p-3 bg-slate-950/40 hover:bg-slate-950 border border-slate-850 hover:border-slate-700 rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
           >
@@ -237,7 +263,7 @@ export default function MainDashboard({
           </button>
 
           <button
-            onClick={() => onCampaignAction('CAY')}
+            {...bindTouchOrClick(() => onCampaignAction('CAY'), currentEvent !== null || playerParty.budget < CAY_COST)}
             disabled={currentEvent !== null || playerParty.budget < CAY_COST}
             className="group flex flex-col items-center justify-center p-3 bg-slate-950/40 hover:bg-slate-950 border border-slate-850 hover:border-slate-700 rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] border-amber-500/20 hover:border-amber-500/50"
           >
@@ -247,7 +273,7 @@ export default function MainDashboard({
           </button>
 
           <button
-            onClick={() => onCampaignAction('BAGIS')}
+            {...bindTouchOrClick(() => onCampaignAction('BAGIS'), currentEvent !== null)}
             disabled={currentEvent !== null}
             className="group flex flex-col items-center justify-center p-3 bg-slate-950/40 hover:bg-slate-950 border border-slate-850 hover:border-slate-700 rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98]"
           >
@@ -257,7 +283,7 @@ export default function MainDashboard({
           </button>
 
           <button
-            onClick={() => onCampaignAction('KURULTAY')}
+            {...bindTouchOrClick(() => onCampaignAction('KURULTAY'), currentEvent !== null || playerParty.budget < CONGRESS_COST)}
             disabled={currentEvent !== null || playerParty.budget < CONGRESS_COST}
             className="group flex flex-col items-center justify-center p-3 bg-slate-955/50 hover:bg-slate-950 border border-slate-850 hover:border-indigo-700/60 rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed active:scale-[0.98] border-indigo-500/20 hover:border-indigo-500/50"
           >
@@ -291,7 +317,7 @@ export default function MainDashboard({
                 {currentEvent.choices.map((choice, idx) => (
                   <button
                     key={idx}
-                    onClick={() => onResolveEvent(idx)}
+                    {...bindTouchOrClick(() => onResolveEvent(idx))}
                     className="w-full text-left p-3.5 text-xs sm:text-sm bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-600 rounded-xl cursor-pointer hover:shadow-lg transition-all"
                   >
                     <div className="font-bold text-slate-200 mb-1 flex items-center gap-1.5">
@@ -312,7 +338,7 @@ export default function MainDashboard({
         <div className={`${activeTab === 'CHAT' ? 'lg:col-span-3' : 'lg:col-span-2'} space-y-4`}>
           <div className="flex border-b border-slate-800 gap-1 bg-slate-950 p-1 rounded-xl">
             <button
-              onClick={() => setActiveTab('MAP')}
+              {...bindTouchOrClick(() => setActiveTab('MAP'))}
               className={`flex-1 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'MAP' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
@@ -320,7 +346,7 @@ export default function MainDashboard({
               Türkiye Haritası
             </button>
             <button
-              onClick={() => setActiveTab('DIPLOMACY')}
+              {...bindTouchOrClick(() => setActiveTab('DIPLOMACY'))}
               className={`flex-1 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'DIPLOMACY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
@@ -328,7 +354,7 @@ export default function MainDashboard({
               Diplomasi Entegrasyonu
             </button>
             <button
-              onClick={() => setActiveTab('CHAT')}
+              {...bindTouchOrClick(() => setActiveTab('CHAT'))}
               className={`flex-1 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'CHAT' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
@@ -336,7 +362,7 @@ export default function MainDashboard({
               Özel Görüşme / Sohbet
             </button>
             <button
-              onClick={() => setActiveTab('HISTORY')}
+              {...bindTouchOrClick(() => setActiveTab('HISTORY'))}
               className={`flex-1 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'HISTORY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
@@ -482,20 +508,19 @@ export default function MainDashboard({
                 {weeksRemaining > 0 ? (
                   <button
                     disabled={currentEvent !== null}
-                    onClick={onNextWeek}
+                    {...bindTouchOrClick(onNextWeek, currentEvent !== null)}
                     className="w-full py-3 px-4 bg-blue-600 hover:bg-blue-500 enabled:active:scale-95 text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed flex items-center justify-center gap-1.5 shadow-lg shadow-blue-600/20"
                   >
                     Sonraki Haftaya Geç ⏭
                   </button>
                 ) : (
                   <button
-                    onClick={onGoToElection}
+                    {...bindTouchOrClick(onGoToElection)}
                     className="w-full py-3 px-4 bg-gradient-to-r from-red-600 to-rose-600 hover:from-red-500 hover:to-rose-500 text-white font-extrabold text-xs uppercase tracking-widest rounded-xl transition-all cursor-pointer flex items-center justify-center gap-2 shadow-xl shadow-rose-600/30 animate-pulse"
                   >
                     <Landmark className="w-4 h-4 fill-white animate-spin" /> Sandıkları Aç / Seçime Git!
                   </button>
-                )
-                }
+                )}
               </div>
             </div>
           </div>
@@ -523,7 +548,7 @@ export default function MainDashboard({
                 return (
                   <button
                     key={reg.id}
-                    onClick={() => executeRally(reg.id)}
+                    {...bindTouchOrClick(() => executeRally(reg.id))}
                     className="w-full text-left p-3 rounded-xl bg-slate-950/60 hover:bg-slate-950 border border-slate-850 hover:border-slate-700 hover:text-white transition-all cursor-pointer flex justify-between items-center"
                   >
                     <div>
@@ -538,7 +563,7 @@ export default function MainDashboard({
 
             <div className="flex gap-2 pt-1">
               <button
-                onClick={() => setShowRallyModal(false)}
+                {...bindTouchOrClick(() => setShowRallyModal(false))}
                 className="flex-1 py-1.5 px-4 bg-slate-800 hover:bg-slate-705 border border-slate-700 rounded-lg text-xs font-bold transition-all cursor-pointer text-slate-300 hover:text-white"
               >
                 Vazgeç
