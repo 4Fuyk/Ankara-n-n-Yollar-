@@ -215,7 +215,6 @@ export default function TurkeyMap({
       <div 
         className="relative w-full turkey-interactive-map-container overflow-hidden bg-slate-950/60 border border-slate-900 rounded-2xl p-4 flex justify-center items-center shadow-inner"
         onClick={handleMapInteraction}
-        onTouchStart={handleMapInteraction}
       >
         <style>{`
           .turkey-interactive-map-container svg {
