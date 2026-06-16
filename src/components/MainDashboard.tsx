@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
-import { Party, Province, PoliticalEvent, GameLog, Region, Alliance } from '../types';
+import React, { useState, useEffect } from 'react';
+import { Party, Province, PoliticalEvent, GameLog, Region, Alliance, Difficulty } from '../types';
 import TurkeyMap from './TurkeyMap';
 import DiplomacyPanel from './DiplomacyPanel';
 import LeaderChat from './LeaderChat';
 import { regions } from '../data/regions';
 import { playSound } from '../utils/audio';
+import { Language, translations } from '../utils/languages';
+import { shareCampaignToArena, fetchGlobalArenaCampaigns, updateLobbyMemberProgress, listenToLobbyMembers } from '../utils/firebase';
 import {
   Megaphone,
   Radio,
@@ -22,7 +24,11 @@ import {
   VolumeX,
   Award,
   Save,
-  MessageSquare
+  MessageSquare,
+  Globe,
+  RefreshCw,
+  LogIn,
+  LogOut
 } from 'lucide-react';
 
 interface MainDashboardProps {
@@ -48,6 +54,14 @@ interface MainDashboardProps {
   kulisChats: string[];
   chatHistories: Record<string, { sender: string; text: string; week: number }[]>;
   onUpdateState: (updater: (prev: any) => any) => void;
+  lang: Language;
+  setLang: (lang: Language) => void;
+  user: any;
+  onLogin: () => void;
+  onLogout: () => void;
+  difficulty: Difficulty;
+  lobbyCode?: string;
+  isMultiplayer?: boolean;
 }
 
 export default function MainDashboard({
@@ -72,14 +86,107 @@ export default function MainDashboard({
   onBuyPoll,
   kulisChats,
   chatHistories,
-  onUpdateState
+  onUpdateState,
+  lang,
+  setLang,
+  user,
+  onLogin,
+  onLogout,
+  difficulty,
+  lobbyCode,
+  isMultiplayer
 }: MainDashboardProps) {
-  const [activeTab, setActiveTab] = useState<'MAP' | 'DIPLOMACY' | 'CHAT' | 'HISTORY'>('MAP');
+  const [activeTab, setActiveTab] = useState<'MAP' | 'DIPLOMACY' | 'CHAT' | 'HISTORY' | 'ARENA'>('MAP');
   const [showRallyModal, setShowRallyModal] = useState(false);
   const [selectedProvinceId, setSelectedProvinceId] = useState<number | null>(null);
   const [soundEnabled, setSoundEnabled] = useState(playSound.enabled);
 
+  // Global Arena state values
+  const [arenaCampaigns, setArenaCampaigns] = useState<any[]>([]);
+  const [loadingArena, setLoadingArena] = useState(false);
+  const [submittingCampaign, setSubmittingCampaign] = useState(false);
 
+  const t = translations[lang];
+
+  // Fetch from global lobby on refresh or when tabs change
+  const handleFetchArena = async () => {
+    setLoadingArena(true);
+    try {
+      const list = await fetchGlobalArenaCampaigns();
+      setArenaCampaigns(list);
+    } catch (e) {
+      console.error("Error reading from world arena: ", e);
+    } finally {
+      setLoadingArena(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'ARENA') {
+      handleFetchArena();
+    }
+  }, [activeTab]);
+
+  const handleShareCampaign = async () => {
+    if (!user) {
+      alert(lang === 'TR' ? "Arenada yayınlamak için önce Google ile Giriş yapmalısınız!" : "Please Sign In with Google first to post to arena!");
+      return;
+    }
+    setSubmittingCampaign(true);
+    try {
+      const campaignId = `${user.uid}_campaign`;
+      await shareCampaignToArena(campaignId, {
+        userId: user.uid,
+        playerName: user.displayName || 'Anonim Yurttaş',
+        partyName: playerParty.name,
+        shortName: playerParty.shortName,
+        ideology: playerParty.ideology,
+        difficulty: difficulty,
+        support: playerParty.support,
+        weeksRemaining: weeksRemaining,
+        votersSupport: playerParty.support,
+        coalitionInfo: playerAlliance ? playerAlliance.name : (lang === 'TR' ? 'Bağımsız' : 'Independent'),
+        finished: weeksRemaining <= 0
+      });
+      alert(t.publishedSuccess);
+      handleFetchArena();
+    } catch (err) {
+      console.error(err);
+      alert(lang === 'TR' ? "Hata: " + err : "Error occurred: " + err);
+    } finally {
+      setSubmittingCampaign(false);
+    }
+  };
+
+
+
+  const [multiplayerMembers, setMultiplayerMembers] = useState<any[]>([]);
+
+  // 1. Sync my own progress
+  useEffect(() => {
+    if (isMultiplayer && lobbyCode && user) {
+      const myPlayer = parties.find(p => p.isPlayer);
+      if (myPlayer) {
+        updateLobbyMemberProgress(
+          lobbyCode,
+          user.uid,
+          myPlayer.support,
+          myPlayer.budget,
+          currentWeek
+        ).catch(e => console.error("Error syncing progress metrics: ", e));
+      }
+    }
+  }, [isMultiplayer, lobbyCode, user, currentWeek, parties]);
+
+  // 2. Listen to other participants in real time
+  useEffect(() => {
+    if (isMultiplayer && lobbyCode) {
+      const unsub = listenToLobbyMembers(lobbyCode, (list) => {
+        setMultiplayerMembers(list);
+      });
+      return () => unsub();
+    }
+  }, [isMultiplayer, lobbyCode]);
 
   const playerParty = parties.find(p => p.isPlayer);
   if (!playerParty) return null;
@@ -152,6 +259,34 @@ export default function MainDashboard({
                 )}
               </button>
 
+              {/* Language Selector */}
+              <button
+                onClick={() => { playSound.playClick(); setLang(lang === 'TR' ? 'EN' : 'TR'); }}
+                className="flex items-center gap-1.5 p-1 px-2.5 bg-slate-950/60 hover:bg-slate-800 text-slate-300 hover:text-white rounded-lg border border-slate-850 hover:border-slate-700 transition-all cursor-pointer select-none ml-2 text-[10px] font-black"
+              >
+                <span>🌍 {lang === 'TR' ? 'ENGLISH' : 'TURKİSH'}</span>
+              </button>
+
+              {/* Google Logged-In Account status */}
+              {user ? (
+                <button
+                  onClick={() => { playSound.playClick(); onLogout(); }}
+                  className="flex items-center gap-1.5 p-1 px-2.5 bg-rose-950/30 hover:bg-rose-900/40 text-rose-400 hover:text-rose-250 rounded-lg border border-rose-900/30 hover:border-rose-700 transition-all cursor-pointer select-none ml-2 text-[9px] uppercase font-bold"
+                  title={user.email}
+                >
+                  <LogOut className="w-3 h-3 text-rose-500" />
+                  <span>{user.displayName?.split(' ')[0] || 'Kullanıcı'} ({lang === 'TR' ? 'Çıkış' : 'Logout'})</span>
+                </button>
+              ) : (
+                <button
+                  onClick={() => { playSound.playClick(); onLogin(); }}
+                  className="flex items-center gap-1.5 p-1 px-2.5 bg-emerald-950/30 hover:bg-emerald-900/40 text-emerald-400 hover:text-emerald-250 border border-emerald-900/30 hover:border-emerald-700/50 rounded-lg transition-all cursor-pointer select-none ml-2 text-[9px] uppercase font-bold"
+                >
+                  <LogIn className="w-3 h-3 text-emerald-400 animate-pulse" />
+                  <span>{lang === 'TR' ? 'Google Girişi' : 'Google Auth'}</span>
+                </button>
+              )}
+
               {/* Game Save/Load state trigger button */}
               {onOpenSaveLoad && (
                 <button
@@ -160,7 +295,7 @@ export default function MainDashboard({
                   title="Oyunu Kaydet / Yükle"
                 >
                   <Save className="w-3.5 h-3.5" />
-                  <span className="text-[9px] uppercase font-bold tracking-wider">KAYDET/YÜKLE</span>
+                  <span className="text-[9px] uppercase font-bold tracking-wider">{lang === 'TR' ? 'KAYDET/YÜKLE' : 'SAVE/LOAD'}</span>
                 </button>
               )}
             </div>
@@ -338,38 +473,38 @@ export default function MainDashboard({
       <section className="grid grid-cols-1 lg:grid-cols-3 gap-6 items-start">
         {/* Left Big Columns (Switchable tabs: Map, Diplomacy, History, Chat) */}
         <div className={`${activeTab === 'CHAT' ? 'lg:col-span-3' : 'lg:col-span-2'} space-y-4`}>
-          <div className="flex border-b border-slate-800 gap-1 bg-slate-950 p-1 rounded-xl">
+          <div className="flex border-b border-slate-800 gap-1 bg-slate-950 p-1 rounded-xl flex-wrap">
             <button
               onClick={() => { playSound.playClick(); setActiveTab('MAP'); }}
-              className={`flex-1 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              className={`flex-1 min-w-[80px] py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'MAP' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Türkiye Haritası
+              {t.tabTurkeyMap}
             </button>
             <button
               onClick={() => { playSound.playClick(); setActiveTab('DIPLOMACY'); }}
-              className={`flex-1 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              className={`flex-1 min-w-[80px] py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'DIPLOMACY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Diplomasi Entegrasyonu
+              {t.tabDiplomacy}
             </button>
             <button
               onClick={() => { playSound.playClick(); setActiveTab('CHAT'); }}
-              className={`flex-1 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              className={`flex-1 min-w-[80px] py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'CHAT' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Özel Görüşme / Sohbet
+              {t.tabChat}
             </button>
             <button
               onClick={() => { playSound.playClick(); setActiveTab('HISTORY'); }}
-              className={`flex-1 py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
+              className={`flex-1 min-w-[80px] py-1.5 px-1.5 text-[11px] sm:text-xs font-bold rounded-lg transition-all cursor-pointer ${
                 activeTab === 'HISTORY' ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'
               }`}
             >
-              Haberler ({logs.length})
+              {lang === 'TR' ? `Ulus Bülteni (${logs.length})` : `Bulletins (${logs.length})`}
             </button>
           </div>
 
@@ -454,6 +589,59 @@ export default function MainDashboard({
         {/* Right 1 Column (Realtime Poll / Standings & Weeks Actions) - HIDE IF IN CHAT TAB to let chat expand full width */}
         {activeTab !== 'CHAT' && (
           <div className="space-y-4">
+            
+            {/* Realtime Live Multiplayer Lobby Card */}
+            {isMultiplayer && (
+              <div className="bg-gradient-to-r from-slate-900 via-indigo-950/20 to-slate-900 border border-indigo-500/20 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-indigo-600 px-2.5 py-0.5 rounded-bl-lg text-[8px] font-black tracking-widest text-white uppercase animate-pulse">
+                  CANLI KAMPANYA
+                </div>
+                
+                <h3 className="text-xs font-black uppercase tracking-wider text-indigo-300 border-b border-slate-855 pb-2 flex items-center gap-1.5">
+                  <Globe className="w-4 h-4 text-indigo-400 animate-spin" style={{ animationDuration: '6s' }} />
+                  <span>{lang === 'TR' ? 'Lobi Liderleri Canlı' : 'Lobby Leaderboard'}</span>
+                  <span className="text-[10px] bg-indigo-500/10 px-2 py-0.5 rounded-lg border border-indigo-500/10 font-mono text-indigo-400 font-bold ml-auto">{lobbyCode}</span>
+                </h3>
+
+                <div className="space-y-2.5">
+                  {multiplayerMembers.map((m) => {
+                    const isMe = m.uid === user?.uid;
+                    return (
+                      <div 
+                        key={m.uid} 
+                        className={`p-3 rounded-xl border ${
+                          isMe 
+                            ? 'bg-indigo-500/5 border-indigo-500/20' 
+                            : 'bg-slate-950/50 border-slate-850 hover:border-slate-800'
+                        } transition flex items-center justify-between gap-2`}
+                      >
+                        <div className="flex items-center gap-2.5 min-w-0">
+                          <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: m.color || '#4b5563' }} />
+                          <div className="min-w-0">
+                            <span className="block font-bold text-xs text-slate-200 truncate">
+                              {m.playerName} {isMe && <strong className="text-[9px] text-amber-500">(Siz)</strong>}
+                            </span>
+                            <span className="block text-[10px] text-slate-500 truncate">
+                              {m.partyName ? `${m.partyName} (${m.shortName})` : 'Seçmen Ligi'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="text-right shrink-0">
+                          <span className="block text-[10px] font-black text-slate-400">
+                            {lang === 'TR' ? `${m.currentWeek || 1}. Hafta` : `Week ${m.currentWeek || 1}`}
+                          </span>
+                          <span className="block text-xs font-black text-emerald-400">
+                            %{((m.support !== undefined && typeof m.support === 'number') ? m.support : 10).toFixed(1)}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
             <div className="bg-slate-900 border border-slate-850 rounded-2xl p-4 sm:p-5 shadow-xl space-y-4">
               <h3 className="text-xs font-bold uppercase tracking-wider text-slate-400 border-b border-slate-850 pb-2 flex items-center justify-between">
                 <span>Güncel Seçmen Anketi (Genel Destek)</span>

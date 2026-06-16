@@ -1,0 +1,250 @@
+export type Language = 'TR' | 'EN';
+
+export const translations = {
+  TR: {
+    title: "Cumhurbaşkanlığı & Parlamento Seçim Simülasyonu",
+    subtitle: "Kendi siyasi partini kur, ideolojini seç, ittifaklarını yönet ve 81 ilde milli iradenin desteğini kazan!",
+    customPartyTitle: "Siyasi Partini Tasarla",
+    leaderName: "Liderinizin İsmi",
+    leaderNamePlaceholder: "Örn: Süleyman Demirel, Bülent Ecevit...",
+    partyName: "Partinizin Tam İsmi",
+    partyNamePlaceholder: "Örn: Demokratik Refah Partisi",
+    shortName: "Kısaltılmış Kısaltma (RUMUZ)",
+    shortNamePlaceholder: "Örn: DRP, SLP, MDP",
+    partyThemeColor: "Parti Kurumsal Rengi",
+    selectIdeology: "Siyasi Doktrin / İdeoloji",
+    selectDifficulty: "Simülasyon Zorluk Derecesi",
+    difficultyEasy: "Kolay (10M TL Bütçe, Kolay Seçmen)",
+    difficultyNormal: "Normal (3M TL Bütçe, Dengeli Seçmen)",
+    difficultyHard: "Zor (500K TL Bütçe, İnatçı Seçmen)",
+    btnStart: "Seçim Ofisini Aç / Oyunu Başlat!",
+    howToPlayTitle: "Nasıl Oynanır? 🗳️",
+    howToPlay1: "Yeni bir siyasi parti kurun, partinizin amblem rengini ve lider portresini özelleştirin.",
+    howToPlay2: "Her hafta bütçenizi yöneterek bölge mitingleri düzenleyin, reklam yayınları yapın ya da TV programlarına çıkın.",
+    howToPlay3: "Yapay zeka partilerle ittifaklar kurabilir, onlara polemik savaşları açabilir ya da gizli kulis sohbetleri yapabilirsiniz.",
+    howToPlay5: "52 haftalık kıran kırana maraton bittiğinde 81 il üzerindeki sandıklar açılır. %7 genel barajı geçen partiler Meclis'te sandalye edinir.",
+    
+    // Auth & Cloud Save
+    cloudSyncTitle: "Bulut Yedekleme & Çok Oyunculu",
+    googleLoginBtn: "Google ile Giriş Yap / Kaydol",
+    logoutBtn: "Oturumu Kapat",
+    loginSuccess: "Giriş yapıldı. Oyunlarınız artık otomatik olarak bulut hesabınızla yedeklenir!",
+    loadingCloudSaves: "Bulut kayıtları taranıyor...",
+    noCloudSaves: "Henüz bulutta kayıtlı oyununuz yok.",
+    cloudSaveSlot: "Bulut Kaydı {slot}",
+    saveToCloudSuccess: "Oyununuz başarıyla buluta yedeklendi!",
+    loadFromCloudSuccess: "Oyununuz buluttan başarıyla yüklendi!",
+    savingToCloud: "Buluta yedekleniyor...",
+    loadingFromCloud: "Yükleniyor...",
+    
+    // Navigation / Tabs
+    tabTurkeyMap: "Türkiye Haritası",
+    tabDiplomacy: "Diplomasi Entegrasyonu",
+    tabChat: "Özel Görüşme / Sohbet",
+    tabHistory: "Haber Bülteni & İcraatlar",
+    tabGlobalArena: "Dünya Arenası / Multiplayer",
+    
+    // Main Panel Stats
+    weeksRemaining: "Seçime Kalan Süre",
+    weeksShort: "Hafta",
+    currentBudget: "Hazine / Parti Kasası",
+    nationalPolls: "Türkiye Geneli Anket",
+    allianceStatus: "Bulunduğunuz İttifak",
+    nationalVotes: "Seçmen Desteği",
+    noAlliance: "İttifaksız Bağımsız",
+    difficultyLevel: "Simülasyon Zorluğu",
+    
+    // Actions Grid
+    actionRally: "Dev Miting Meydanı",
+    actionRallyDesc: "Maliyet: 500K TL | Bölgesel büyük oy dalgası",
+    actionAd: "Sosyal Medya & Reklam",
+    actionAdDesc: "Maliyet: 250K TL | Genç seçmen odağı",
+    actionTv: "Ulusal TV Canlı Yayını",
+    actionTvDesc: "Maliyet: 150K TL | Türkiye genelinde istikrarlı artış",
+    actionTea: "Birebir Çay Dağıtımı",
+    actionTeaDesc: "Maliyet: 15K TL | Vatandaşlarla hasbihal",
+    actionFundraise: "Finansal Bağış Toplantısı",
+    actionFundraiseDesc: "Halka Açık | Nakit bütçe kazandırır",
+    actionCongress: "Olağanüstü Büyük Kurultay",
+    actionCongressDesc: "Maliyet: 1.0M TL | Teşkilat tabanını konsolide et",
+    
+    // Next week buttons
+    nextWeek: "Sonraki Haftaya Geç",
+    goToElection: "Sandıkları Aç / Seçime Git!",
+    
+    // Save-Load Dialog
+    saveLoadModalTitle: "Oyun Kaydet ve Yükle",
+    saveInSlot: "Yuvaya Kaydet",
+    loadFromSlot: "Yuvadan Yükle",
+    emptySlot: "Boş Yuva",
+    savedAt: "Kayıt Saati",
+    localSaveTitle: "Cihaz Kayıtları",
+    cloudSaveTitle: "Google Bulut Kayıtları",
+    
+    // Regional & Diplomacy Text
+    selectRegionToView: "Bilgilerini incelemek için haritada bir vilayete tıklayın veya bölge seçin.",
+    population: "Kayıtlı Seçmen",
+    ideologiesTitle: "Bölgesel İdeolojik Dağılım",
+    partySupportIn: "{province} İlinde Parti Destekleri",
+    
+    // Rival interactions
+    alliancesTitle: "Millet & Cumhur Aktif İttifaklar",
+    partyRelation: "Sizinle İlişkiler",
+    coalitionJoinProposal: "İttifakına Katılma Teklifi Yolla",
+    createAllianceProposal: "Ortak Seçim İttifakı Kur",
+    leaveAllianceBtn: "Bulunduğun İttifaktan Ayrıl",
+    
+    // Multiplayer World Arena
+    worldArenaTitle: "Küresel Dünya Arenası (Multiplayer)",
+    worldArenaSub: "Burada, dünyanın dört bir yanındaki diğer oyuncuların kurduğu partileri, aktif kampanyalarını ve anket oranlarını canlı olarak görebilirsiniz. Kendi kampanyanı bizzat sisteme ekle!",
+    publishCampaignBtn: "Mevcut Kampanyanı Dünya Arenasına Gönder!",
+    publishedSuccess: "Kampanyanız dünya arenasının canlı panosuna başarıyla eklendi!",
+    refreshArena: "Arenayı Yenile",
+    arenaColPlayer: "Oyuncu / Lider",
+    arenaColParty: "Parti / İdeoloji",
+    arenaColSupport: "Anket Desteği",
+    arenaColDifficulty: "Zorluk",
+    arenaColStatus: "Simülasyon Durumu",
+    arenaStatusActive: "🗳️ Devam Ediyor ({weeks} Hf Kaldı)",
+    arenaStatusFinished: "🏆 Sandık Açıldı! (Oy: %{votes})",
+    noArenaPosts: "Dünya arenasından henüz aktif kampanya kaydı çekilemedi.",
+    
+    // EndGame
+    electionNightTitle: "TÜRKİYE SEÇİM GECESİ",
+    electionNightSub: "Yüksek Seçim Kurulu (YSK) verileri canlı olarak akıyor! Toplam 600 sandalyeli Türkiye Büyük Millet Meclisi (TBMM) koltuk dağılımı netleşiyor.",
+    btnElectionMap: "Seçim Sonuç Haritası",
+    btnParliamentDistribution: "Meclis Koltuk Dağılımı",
+    totalNationwideVotes: "Partilerin Türkiye Geneli Oy Oranları",
+    seatCount: "{count} Milletvekili",
+    parliamentSeatingTitle: "Yeni TBMM Koltuk Şeması (600 Milletvekili)",
+    totalAllianceVotes: "İttifakların Toplam Gücü",
+    btnRestartGame: "Yeni Bir Seçim Dönemine Başla 🔁",
+    electionResultWin: "TEBRİKLER! En yüksek oyu alarak Türkiye Cumhuriyeti'nin yeni lideri ve Cumhurbaşkanı seçildiniz! Meclis çoğunluğuyla birlikte yeni hükümeti kurma yetkisi sizde!",
+    electionResultNormal: "Seçim sonuçlandı! Meclis'te güçlü bir grup kurarak ana muhalefet partisi konumuna yükseldiniz ve demokratik mücadeleye kaldığınız yerden devam ediyorsunuz.",
+    allianceFormedMsg: "Yeni ittifakınız hayırlı olsun!",
+    leftAllianceMsg: "İttifaktan ayrıldınız. Politik patikanız artık bağımsız."
+  },
+  EN: {
+    title: "Presidential & Parliamentary Election Simulation",
+    subtitle: "Establish your political party, pick your ideology, manage coalitions, and win the democratic will across 81 provinces!",
+    customPartyTitle: "Design Your Political Party",
+    leaderName: "Leader's Full Name",
+    leaderNamePlaceholder: "e.g., Suleyman Demirel, Bulent Ecevit...",
+    partyName: "Complete Party Name",
+    partyNamePlaceholder: "e.g., Democratic Welfare Party",
+    shortName: "Abbreviation Short Name (Acronym)",
+    shortNamePlaceholder: "e.g., DWP, SLP, MDP",
+    partyThemeColor: "Party Theme Color",
+    selectIdeology: "Political Doctrine / Ideology",
+    selectDifficulty: "Simulation Difficulty Level",
+    difficultyEasy: "Easy (10M TRY Budget, Favorable Voters)",
+    difficultyNormal: "Normal (3M TRY Budget, Balanced Voters)",
+    difficultyHard: "Hard (500K TRY Budget, Rigid Voters)",
+    btnStart: "Open Regional Campaign / Start Simulation!",
+    howToPlayTitle: "How to Play? 🗳️",
+    howToPlay1: "Form a brand new political party, customize your theme color and leader portrait.",
+    howToPlay2: "Manage your weekly budget to host giant regional rallies, publish social ads, or go on national TV.",
+    howToPlay3: "Allies can form coalitions, launch political polemics, or engage in behind-the-scenes lobbying.",
+    howToPlay5: "After a fierce 52-week marathon, the ballot boxes across 81 provinces open. Parties surpassing the 7% threshold earn seats in Parliament.",
+    
+    // Auth & Cloud Save
+    cloudSyncTitle: "Cloud Synchronization & Multiplayer",
+    googleLoginBtn: "Sign In containing Google / Register",
+    logoutBtn: "Log Out",
+    loginSuccess: "Signed in successfully! Your progress is now auto-backed up to cloud storage.",
+    loadingCloudSaves: "Scanning cloud files...",
+    noCloudSaves: "No games found in cloud backup.",
+    cloudSaveSlot: "Cloud Lock Save {slot}",
+    saveToCloudSuccess: "Game progress synchronized with Google Cloud!",
+    loadFromCloudSuccess: "Successfully restored simulation from your cloud account!",
+    savingToCloud: "Backing up...",
+    loadingFromCloud: "Restoring...",
+    
+    // Navigation / Tabs
+    tabTurkeyMap: "Turkey Political Map",
+    tabDiplomacy: "Dynamic Diplomacy",
+    tabChat: "Bilateral Lobby / Chat",
+    tabHistory: "News Bulletins & Campaign Logs",
+    tabGlobalArena: "Global Arena / Multiplayer",
+    
+    // Main Panel Stats
+    weeksRemaining: "Weeks Remaining",
+    weeksShort: "Wk",
+    currentBudget: "Treasury / Campaign Capital",
+    nationalPolls: "National Poll Standings",
+    allianceStatus: "Active Coalition / Alliance",
+    nationalVotes: "Voter Support",
+    noAlliance: "Independent Candidate",
+    difficultyLevel: "Simulation Difficulty",
+    
+    // Actions Grid
+    actionRally: "Massive Rally Campaign",
+    actionRallyDesc: "Cost: 500K TL | Massive regional boost",
+    actionAd: "Digital Ads & Social Media",
+    actionAdDesc: "Cost: 250K TL | Target student demographics",
+    actionTv: "National TV Broadcast",
+    actionTvDesc: "Cost: 150K TL | Gradual and stable national grow",
+    actionTea: "Neighborhood Tea & Talk",
+    actionTeaDesc: "Cost: 15K TL | Talk directly with working citizens",
+    actionFundraise: "Exclusive Fundraising Dinner",
+    actionFundraiseDesc: "Public Event | Inject cash capital into budget",
+    actionCongress: "Emergency National Congress",
+    actionCongressDesc: "Cost: 1.0M TL | Consolidate party support base",
+    
+    // Next week buttons
+    nextWeek: "Process Next Week",
+    goToElection: "Open Ballots / Start Election!",
+    
+    // Save-Load Dialog
+    saveLoadModalTitle: "Save / Load Progress",
+    saveInSlot: "Save to Slot",
+    loadFromSlot: "Load from Slot",
+    emptySlot: "Empty Slot",
+    savedAt: "Saved Timestamp",
+    localSaveTitle: "Local Device Storage",
+    cloudSaveTitle: "Google Cloud Backups",
+    
+    // Regional & Diplomacy Text
+    selectRegionToView: "Select a province on the map to see specific historical trends, registered voters, and local support.",
+    population: "Registered Voters",
+    ideologiesTitle: "Regional Ideological Demographics",
+    partySupportIn: "Active Party Support in {province}",
+    
+    // Rival interactions
+    alliancesTitle: "Active Political Alliances",
+    partyRelation: "Relation Level",
+    coalitionJoinProposal: "Send Coalition Proposal",
+    createAllianceProposal: "Pitch Joint Alliance",
+    leaveAllianceBtn: "Formally Defect from Alliance",
+    
+    // Multiplayer World Arena
+    worldArenaTitle: "Global Campaign Arena (Multiplayer Lobbies)",
+    worldArenaSub: "Behold campaigns posted live by other political masters across the world! Submit your active or finished campaign for world records.",
+    publishCampaignBtn: "Publish Your Campaign to Global Arena!",
+    publishedSuccess: "Your political campaign is now live on the World Arena board!",
+    refreshArena: "Refresh Feed",
+    arenaColPlayer: "Leader / User",
+    arenaColParty: "Party & Platform",
+    arenaColSupport: "Current Support",
+    arenaColDifficulty: "Diff",
+    arenaColStatus: "Campaign Status",
+    arenaStatusActive: "🗳️ Campaigning ({weeks} Wk Left)",
+    arenaStatusFinished: "🏆 Election Ended! (Shares: %{votes})",
+    noArenaPosts: "No active campaigns found in the World Arena yet.",
+    
+    // EndGame
+    electionNightTitle: "TURKEY ELECTION NIGHT",
+    electionNightSub: "Ballot counts are coming live from Supreme Election Council! Parliamentary seat allocations for the 600-member legislature are solidifying.",
+    btnElectionMap: "Election Map",
+    btnParliamentDistribution: "Parliament Seats",
+    totalNationwideVotes: "Nationwide Popular Vote Percentages",
+    seatCount: "{count} Seats",
+    parliamentSeatingTitle: "New Parliamentary Layout (600 Seats)",
+    totalAllianceVotes: "Coalition Block Strength",
+    btnRestartGame: "Restart Campaign Period 🔁",
+    electionResultWin: "VICTORY! You won the election with majority popular support to become the President of Turkey! You hold the mandate to build the ruling government!",
+    electionResultNormal: "The election has finished. You built a major political force in Parliament, gaining status as the primary active opposition group.",
+    allianceFormedMsg: "Your new alliance has been successfully formed!",
+    leftAllianceMsg: "You have defected from the alliance. Your political path is now autonomous."
+  }
+};

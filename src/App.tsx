@@ -22,8 +22,11 @@ import CitizenChatModal from './components/CitizenChatModal';
 import KurultayModal from './components/KurultayModal';
 import TbmmModal from './components/TbmmModal';
 import SaveLoadModal from './components/SaveLoadModal';
+import MultiplayerLobby from './components/MultiplayerLobby';
 import { playSound } from './utils/audio';
-import { Landmark, ArrowRight, Sparkles, Trophy, Award, Volume2, VolumeX, Save } from 'lucide-react';
+import { Language, translations } from './utils/languages';
+import { loginWithGoogle, logoutUser, onAuthStateChanged, auth } from './utils/firebase';
+import { Landmark, ArrowRight, Sparkles, Trophy, Award, Volume2, VolumeX, Save, Cloud, LogIn, LogOut, Users, Globe, Sun, Moon } from 'lucide-react';
 
 const RAKIP_PARTILER: Party[] = [
   { id: '1', name: 'Adalet ve Kalkınma Partisi', shortName: 'AK Parti', leader: 'Recep Tayyip Erdoğan', color: '#ff7a00', ideology: Ideology.MUHAFAZAKAR, support: 0, budget: 15000000, isPlayer: false, allianceId: 'cumhur', relationshipWithPlayer: -20, basePopularity: 1.0, popularityTrends: [], tenureYears: 23 },
@@ -139,8 +142,42 @@ const INITIAL_ALLIANCES: Alliance[] = [
 ];
 
 export default function App() {
-  const [screen, setScreen] = useState<'HOME' | 'CREATE' | 'DASHBOARD' | 'ELECTION'>('HOME');
+  const [screen, setScreen] = useState<'HOME' | 'CREATE' | 'MULTIPLAYER_LOBBY' | 'DASHBOARD' | 'ELECTION'>('HOME');
   const [showSaveLoad, setShowSaveLoad] = useState(false);
+  const [lang, setLang] = useState<Language>('TR');
+  const [user, setUser] = useState<any | null>(null);
+  const [theme, setTheme] = useState<'dark' | 'light'>(() => {
+    return (localStorage.getItem('theme') as 'dark' | 'light') || 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('theme', theme);
+  }, [theme]);
+
+  // Subscribe to Firebase Authentication state changes
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
+      setUser(firebaseUser);
+    });
+    return () => unsubscribe();
+  }, []);
+
+  const handleGoogleLogin = async () => {
+    try {
+      await loginWithGoogle();
+    } catch (e) {
+      console.error("Authorization failure: ", e);
+    }
+  };
+
+  const handleLogout = async () => {
+    try {
+      await logoutUser();
+    } catch (e) {
+      console.error("Logout failure: ", e);
+    }
+  };
+
   const [gameState, setGameState] = useState<GameState>({
     playerParty: null,
     difficulty: Difficulty.NORMAL,
@@ -307,6 +344,143 @@ export default function App() {
       allianceProposals: [],
       gameEnded: false,
       electionResults: null
+    });
+
+    setScreen('DASHBOARD');
+  };
+
+  const handleStartMultiplayerCampaign = (myPartyData: any, otherPartiesData: any[], code: string) => {
+    const player: Party = {
+      id: 'player',
+      name: myPartyData.name,
+      shortName: myPartyData.shortName,
+      leader: myPartyData.leader,
+      color: myPartyData.color,
+      ideology: myPartyData.ideology,
+      support: 0,
+      budget: 3000000,
+      isPlayer: true,
+      allianceId: null,
+      relationshipWithPlayer: 100,
+      basePopularity: 1.0,
+      popularityTrends: [],
+      tenureYears: 1
+    };
+
+    const customParties: Party[] = otherPartiesData.map((op, i) => ({
+      id: op.id || `op_${i}`,
+      name: op.name,
+      shortName: op.shortName,
+      leader: op.leader,
+      color: op.color,
+      ideology: op.ideology as Ideology,
+      support: 0,
+      budget: 3000000,
+      isPlayer: false,
+      allianceId: null,
+      relationshipWithPlayer: 0,
+      basePopularity: 1.0,
+      popularityTrends: []
+    }));
+
+    const builtInCandidates = RAKIP_PARTILER.filter(p => 
+      !customParties.some(cp => cp.shortName === p.shortName) && p.shortName !== player.shortName
+    );
+
+    const updatedParties = [player, ...customParties];
+    while (updatedParties.length < 5 && builtInCandidates.length > 0) {
+      const nextCandidate = builtInCandidates.shift();
+      if (nextCandidate) {
+        updatedParties.push({ ...nextCandidate, popularityTrends: [] });
+      }
+    }
+
+    const mainDemoKey = categoryKeyMap[player.ideology] || 'sosyalDemokrat';
+    const provinces: Province[] = provincesData.map(prov => {
+      const votes: Record<string, number> = {};
+      const playerDemoCaptureRatio = 0.05;
+      const playerCrossCaptureRatio = 0.01;
+
+      updatedParties.forEach(pt => {
+        votes[pt.shortName] = 0;
+      });
+
+      Object.entries(prov.demographics).forEach(([demoKey, demoRatio]) => {
+        const categories = baseLoyalty[demoKey] || {};
+        let remainingProportion = 1.0;
+        
+        if (demoKey === mainDemoKey) {
+          votes[player.shortName] += (demoRatio * playerDemoCaptureRatio * 100);
+          remainingProportion -= playerDemoCaptureRatio;
+        } else {
+          votes[player.shortName] += (demoRatio * playerCrossCaptureRatio * 100);
+          remainingProportion -= playerCrossCaptureRatio;
+        }
+
+        Object.entries(categories).forEach(([shortName, categoryLoyalty]) => {
+          let targetShortName = shortName;
+          if (shortName === 'AK Parti' && customParties.some(p => p.shortName === 'AK Parti')) targetShortName = customParties.find(p => p.shortName === 'AK Parti')!.shortName;
+          else if (shortName === 'CHP' && customParties.some(p => p.shortName === 'CHP')) targetShortName = customParties.find(p => p.shortName === 'CHP')!.shortName;
+          else if (shortName === 'MHP' && customParties.some(p => p.shortName === 'MHP')) targetShortName = customParties.find(p => p.shortName === 'MHP')!.shortName;
+
+          if (votes[targetShortName] !== undefined) {
+            votes[targetShortName] += (demoRatio * categoryLoyalty * remainingProportion * 100);
+          } else {
+            const fallbackKey = updatedParties.find(pt => !pt.isPlayer)?.shortName || player.shortName;
+            votes[fallbackKey] += (demoRatio * categoryLoyalty * remainingProportion * 100);
+          }
+        });
+      });
+
+      const sum = Object.values(votes).reduce((a, b) => (a as number) + (b as number), 0) as number;
+      Object.keys(votes).forEach(k => {
+        votes[k] = sum > 0 ? (votes[k] / sum) * 100 : 20;
+      });
+
+      return {
+        ...prov,
+        votes
+      };
+    });
+
+    const totalNationalVoters = provinces.reduce((acc, curr) => acc + curr.voterCount, 0);
+    updatedParties.forEach(pt => {
+      let absoluteVotes = 0;
+      provinces.forEach(prov => {
+        const provShare = prov.votes[pt.shortName] || 0;
+        absoluteVotes += (provShare / 100) * prov.voterCount;
+      });
+      pt.support = (absoluteVotes / totalNationalVoters) * 100;
+      pt.popularityTrends = [pt.support];
+    });
+
+    setGameState({
+      playerParty: player,
+      difficulty: Difficulty.NORMAL,
+      weeksRemaining: 52,
+      parties: updatedParties,
+      alliances: INITIAL_ALLIANCES.map(a => ({ ...a })),
+      provinces,
+      currentEvent: null,
+      activeRivalInteraction: null,
+      activeCitizenChat: null,
+      logs: [
+        { week: 1, message: `${myPartyData.name} (${myPartyData.shortName}) gerçek zamanlı çok oyunculu kanallarda kuruldu! Lobi Kodu: ${code}`, type: 'success' },
+        { week: 1, message: 'Seçim süreci başladı! Diğer liderlerin haftalık ilerlemelerini sağ panelden canlı izleyin.', type: 'info' }
+      ],
+      kulisChats: [
+        `📺 MULTIPLAYER KULİS: ${code} kodlu odada canlı rekabet ve diplomasi kanalları tesis edildi.`
+      ],
+      chatHistories: {},
+      currentWeek: 1,
+      pollExpiryWeek: 1,
+      isElectionStarted: false,
+      selectedRegionId: null,
+      allianceProposals: [],
+      gameEnded: false,
+      electionResults: null,
+      lobbyCode: code,
+      isMultiplayer: true
     });
 
     setScreen('DASHBOARD');
@@ -1754,10 +1928,75 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 flex flex-col items-center justify-start p-4 md:p-8 antialiased selection:bg-blue-500/30 selection:text-blue-100">
+    <div className={`min-h-screen ${theme === 'light' ? 'light-theme bg-slate-50 text-slate-900' : 'bg-slate-950 text-slate-100'} flex flex-col items-center justify-start p-4 md:p-8 antialiased selection:bg-blue-500/30 selection:text-blue-100 transition-colors duration-200`}>
       
       {/* Background radial slate accents */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-7xl h-[400px] bg-gradient-to-b from-blue-950/10 to-transparent pointer-events-none blur-3xl z-0" />
+
+      {/* GLOBAL UPPER HEADER (PROMINENT SIGN IN AND STATUS BAR) */}
+      <header className="w-full max-w-6xl relative z-20 mb-4 bg-slate-900/60 backdrop-blur-md border border-slate-850 px-5 py-3 rounded-2xl flex flex-col sm:flex-row items-center justify-between gap-4 shrink-0">
+        <div className="flex items-center gap-3">
+          <div className="p-2 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-xl text-white shadow-lg shadow-indigo-600/10 shrink-0">
+            <Landmark className="w-5 h-5 text-slate-100" />
+          </div>
+          <div className="text-left">
+            <h2 className="text-sm font-black text-slate-100 uppercase tracking-wider">
+              Ankara'nın Yolları 🇹🇷
+            </h2>
+            <span className="text-[10px] text-slate-500 font-bold block">TÜRKİYE SEÇİMLERİ SİMÜLASYONU</span>
+          </div>
+        </div>
+
+        {/* Right Side: Google Login, Theme toggles and levels */}
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap justify-end shrink-0 w-full sm:w-auto">
+          {user ? (
+            <div className="flex items-center gap-3 bg-slate-950/40 border border-slate-850 px-3 py-1.5 rounded-xl">
+              {user.photoURL ? (
+                <img referrerPolicy="no-referrer" src={user.photoURL} alt={user.displayName} className="w-6 h-6 rounded-full border border-indigo-500/40" />
+              ) : (
+                <div className="w-6 h-6 rounded-full bg-indigo-600/20 text-indigo-400 font-black text-xs flex items-center justify-center border border-indigo-500/20 uppercase">
+                  {user.displayName?.slice(0, 1) || 'L'}
+                </div>
+              )}
+              <div className="text-left hidden xs:block">
+                <span className="text-[10px] text-slate-200 font-extrabold max-w-[120px] block truncate">{user.displayName || 'Lider'}</span>
+                <span className="text-[8px] text-emerald-400 block font-bold uppercase tracking-wider">● Bulut Senkronize</span>
+              </div>
+              <button
+                onClick={handleLogout}
+                className="p-1.5 rounded-lg hover:bg-slate-850 text-rose-400 hover:text-rose-300 transition shrink-0 cursor-pointer"
+                title="Çıkış Yap"
+              >
+                <LogOut className="w-3.5 h-3.5" />
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleGoogleLogin}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs py-2 px-4 rounded-xl shadow-lg shadow-indigo-600/10 cursor-pointer active:scale-95 transition flex items-center gap-1.5 uppercase font-sans tracking-wide shrink-0 whitespace-nowrap"
+            >
+              <LogIn className="w-3.5 h-3.5 text-indigo-200" /> Google Giriş
+            </button>
+          )}
+
+          {/* Theme switcher Toggle */}
+          <button
+            onClick={() => { playSound.playClick(); setTheme(theme === 'dark' ? 'light' : 'dark'); }}
+            className="p-2 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg transition-colors border border-slate-700/60 cursor-pointer flex items-center justify-center shrink-0 shadow-sm"
+            title={theme === 'dark' ? 'Açık Mod' : 'Karanlık Mod'}
+          >
+            {theme === 'dark' ? <Sun className="w-3.5 h-3.5 text-amber-400" /> : <Moon className="w-3.5 h-3.5 text-indigo-400" />}
+          </button>
+
+          {/* Language switcher Toggle */}
+          <button
+            onClick={() => { playSound.playClick(); setLang(lang === 'TR' ? 'EN' : 'TR'); }}
+            className="px-3 py-1.5 bg-slate-800 hover:bg-slate-755 text-slate-300 text-xs font-black rounded-lg transition-colors border border-slate-700/60 cursor-pointer shrink-0"
+          >
+            {lang === 'TR' ? 'EN' : 'TR'}
+          </button>
+        </div>
+      </header>
 
       <main className="w-full max-w-6xl relative z-10 py-4">
         
@@ -1778,30 +2017,51 @@ export default function App() {
               </p>
             </div>
 
-            {/* Premium CTA Buttons */}
+            {/* Premium CTA Buttons - Split Campaign Pathways */}
             <div className="w-full space-y-3 pt-4">
+              
+              {/* 1. Tek Oyunculu Kampanya */}
               <button
-                onClick={() => setScreen('CREATE')}
-                className="w-full relative py-3.5 px-6 font-bold text-sm tracking-widest uppercase bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl active:scale-[0.98] transition-transform shadow-xl shadow-indigo-600/25 cursor-pointer flex items-center justify-center gap-2"
+                onClick={() => { playSound.playClick(); setScreen('CREATE'); }}
+                className="w-full py-3.5 px-6 font-bold text-xs tracking-wider uppercase bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white rounded-xl active:scale-[0.98] transition shadow-lg shadow-indigo-600/15 cursor-pointer flex items-center justify-center gap-2"
               >
-                Yeni Kampanyaya Başla <ArrowRight className="w-4 h-4" />
+                <ArrowRight className="w-4 h-4 text-blue-300 animate-pulse" /> {lang === 'TR' ? 'TEK OYUNCULU SEÇİM KAMPANYASI' : 'SINGLE PLAYER SEÇİM CAMPAIGN'}
               </button>
 
+              {/* 2. Çok Oyunculu Lobi */}
+              <button
+                onClick={() => { playSound.playClick(); setScreen('MULTIPLAYER_LOBBY'); }}
+                className="w-full py-3.5 px-6 font-bold text-xs tracking-wider uppercase bg-slate-850 hover:bg-slate-800 text-indigo-300 hover:text-indigo-200 rounded-xl active:scale-[0.98] transition border border-indigo-500/20 cursor-pointer flex items-center justify-center gap-2 shadow-md"
+              >
+                <Users className="w-4 h-4 text-indigo-455" /> {lang === 'TR' ? 'ÇOK OYUNCULU SEÇİM LOBİSİ (CANLI)' : 'MULTIPLAYER LOBBY (LIVE)'}
+              </button>
+
+              {/* 3. Bulut kayıtları ve yükleme */}
               <button
                 onClick={() => { playSound.playClick(); setShowSaveLoad(true); }}
-                className="w-full relative py-3 px-6 font-bold text-sm tracking-widest uppercase bg-slate-850 hover:bg-slate-800 text-slate-300 hover:text-white rounded-xl active:scale-[0.98] transition-transform border border-slate-800 cursor-pointer flex items-center justify-center gap-2"
+                className="w-full py-3 px-6 font-semibold text-xs tracking-wider uppercase bg-slate-900/40 hover:bg-slate-900 border border-slate-800/60 text-slate-300 hover:text-white rounded-xl active:scale-[0.98] transition cursor-pointer flex items-center justify-center gap-2"
               >
-                Kayıtlı Kampanyayı Yükle <Save className="w-4 h-4 text-indigo-400 animate-pulse" />
+                <Cloud className="w-4 h-4 text-blue-450" /> {lang === 'TR' ? 'BULUT KAYITLARINI YÖNET' : 'MANAGE CLOUD SAVES'}
               </button>
+
             </div>
 
             {/* Version Tickers */}
             <div className="flex items-center gap-1.5 text-[10px] text-slate-500 font-bold border-t border-slate-850 pt-5 w-full justify-center">
-              <span>SÜRÜM v2.8.2</span>
+              <span>SÜRÜM v3.0.0</span>
               <span>•</span>
               <span>TÜRKİYE SEÇİMLERİ SİMÜLATÖRÜ</span>
             </div>
           </div>
+        )}
+
+        {screen === 'MULTIPLAYER_LOBBY' && (
+          <MultiplayerLobby
+            user={user}
+            lang={lang}
+            onBack={handleRestart}
+            onStartCampaign={handleStartMultiplayerCampaign}
+          />
         )}
 
         {screen === 'CREATE' && (
@@ -1833,6 +2093,14 @@ export default function App() {
               kulisChats={gameState.kulisChats}
               chatHistories={gameState.chatHistories}
               onUpdateState={setGameState}
+              lang={lang}
+              setLang={setLang}
+              user={user}
+              onLogin={handleGoogleLogin}
+              onLogout={handleLogout}
+              difficulty={gameState.difficulty}
+              lobbyCode={gameState.lobbyCode}
+              isMultiplayer={gameState.isMultiplayer}
             />
             {gameState.activeRivalInteraction && (
               <RivalInteractionModal
@@ -1870,6 +2138,8 @@ export default function App() {
             currentScreen={screen}
             onClose={() => setShowSaveLoad(false)}
             onLoadGame={handleLoadGame}
+            lang={lang}
+            user={user}
           />
         )}
 

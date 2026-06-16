@@ -164,6 +164,8 @@ export interface GameState {
   selectedRegionId: string | null;
   allianceProposals: string[]; // party IDs who offered alliance
   gameEnded: boolean;
+  lobbyCode?: string;
+  isMultiplayer?: boolean;
   electionResults: {
     provinceWinners: Record<number, string>; // provId -> partyShortName
     regionalVotes: Record<string, Record<string, number>>; // regionId -> partyShortName -> %

@@ -1,0 +1,101 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Global Safety Net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Reuseable global helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // Entity validator: User
+    function isValidUser(data) {
+      return data.uid is string 
+          && data.fullName is string 
+          && data.fullName.size() <= 200
+          && data.email is string
+          && data.email.size() <= 200;
+    }
+
+    // Entity validator: SavedGame
+    function isValidSavedGame(data) {
+      return data.userId is string 
+          && data.saveName is string 
+          && data.saveName.size() <= 300
+          && data.dataJson is string
+          && data.dataJson.size() <= 1048576; // 1MB size limit
+    }
+
+    // Entity validator: GlobalCampaign
+    function isValidGlobalCampaign(data) {
+      return data.userId is string 
+          && data.playerName is string 
+          && data.playerName.size() <= 200
+          && data.partyName is string 
+          && data.partyName.size() <= 200
+          && data.ideology is string
+          && data.difficulty is string
+          && data.support is number
+          && data.finished is bool;
+    }
+
+    // 1. Users collection
+    match /users/{userId} {
+      allow read: if isOwner(userId);
+      allow create, update: if isOwner(userId) && isValidUser(incoming());
+      allow delete: if false;
+
+      // 2. Saved games subcollection
+      match /saves/{saveId} {
+        allow read: if isOwner(userId);
+        allow create, update: if isOwner(userId) && isValidSavedGame(incoming());
+        allow delete: if isOwner(userId);
+      }
+    }
+
+    // 3. Global campaign logs (multiplayer list)
+    match /globalArena/{campaignId} {
+      allow read, list: if true;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidGlobalCampaign(incoming());
+      allow update, delete: if isSignedIn() && existing().userId == request.auth.uid && (
+        (request.method == 'delete') || (isValidGlobalCampaign(incoming()) && incoming().userId == request.auth.uid)
+      );
+    }
+
+    // 4. Multiplayer Lobbies & Real-time Sync Setup
+    match /lobbies/{lobbyId} {
+      allow read, get, list: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+
+      match /members/{memberUid} {
+        allow read, get, list: if isSignedIn();
+        allow create, update, delete: if isSignedIn();
+      }
+
+      match /chat/{msgId} {
+        allow read, list: if isSignedIn();
+        allow create, update, delete: if isSignedIn();
+      }
+    }
+  }
+}

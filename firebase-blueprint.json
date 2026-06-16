@@ -1,0 +1,103 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User account information",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "fullName": { "type": "string" },
+        "email": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "fullName", "email", "createdAt"]
+    },
+    "SavedGame": {
+      "title": "Saved Game State",
+      "description": "A saved game progress linked to the user account",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "saveName": { "type": "string" },
+        "dataJson": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "saveName", "dataJson", "updatedAt"]
+    },
+    "GlobalCampaign": {
+      "title": "Global Campaign Post",
+      "description": "A campaign or finished election shared publicly to the world arena",
+      "type": "object",
+      "properties": {
+        "userId": { "type": "string" },
+        "playerName": { "type": "string" },
+        "partyName": { "type": "string" },
+        "shortName": { "type": "string" },
+        "ideology": { "type": "string" },
+        "difficulty": { "type": "string" },
+        "support": { "type": "number" },
+        "weeksRemaining": { "type": "number" },
+        "votersSupport": { "type": "number" },
+        "coalitionInfo": { "type": "string" },
+        "finished": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "playerName", "partyName", "ideology", "difficulty", "support", "finished", "createdAt"]
+    },
+    "Lobby": {
+      "title": "Multiplayer Game Lobby",
+      "description": "Lobby parameters to synchronize players before campaign starts",
+      "type": "object",
+      "properties": {
+        "hostUid": { "type": "string" },
+        "hostName": { "type": "string" },
+        "lobbyCode": { "type": "string" },
+        "status": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["hostUid", "lobbyCode", "status", "createdAt"]
+    },
+    "LobbyMember": {
+      "title": "Lobby Participant",
+      "description": "Information about a player joined in the multiplayer lobby",
+      "type": "object",
+      "properties": {
+        "playerName": { "type": "string" },
+        "partyName": { "type": "string" },
+        "shortName": { "type": "string" },
+        "color": { "type": "string" },
+        "ideology": { "type": "string" },
+        "uid": { "type": "string" },
+        "isHost": { "type": "boolean" },
+        "ready": { "type": "boolean" },
+        "currentWeek": { "type": "number" },
+        "support": { "type": "number" },
+        "budget": { "type": "number" },
+        "online": { "type": "boolean" }
+      },
+      "required": ["uid"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "A collection containing user profile documents"
+    },
+    "/users/{userId}/saves/{saveId}": {
+      "schema": "SavedGame",
+      "description": "User specific saved game data"
+    },
+    "/globalArena/{campaignId}": {
+      "schema": "GlobalCampaign",
+      "description": "Shared campaign posts shown on the global multiplayer tab"
+    },
+    "/lobbies/{lobbyId}": {
+      "schema": "Lobby",
+      "description": "Multiplayer live lobbies details document"
+    },
+    "/lobbies/{lobbyId}/members/{memberUid}": {
+      "schema": "LobbyMember",
+      "description": "Member choices and synced stats of player"
+    }
+  }
+}
