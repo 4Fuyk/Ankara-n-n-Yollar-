@@ -26,7 +26,7 @@ import MultiplayerLobby from './components/MultiplayerLobby';
 import { playSound } from './utils/audio';
 import { Language, translations } from './utils/languages';
 import { loginWithGoogle, logoutUser, onAuthStateChanged, auth } from './utils/firebase';
-import { Landmark, ArrowRight, Sparkles, Trophy, Award, Volume2, VolumeX, Save, Cloud, LogIn, LogOut, Users, Globe, Sun, Moon } from 'lucide-react';
+import { Landmark, ArrowRight, Sparkles, Trophy, Award, Volume2, VolumeX, Save, Cloud, LogIn, LogOut, Users, Globe, Sun, Moon, AlertTriangle, ExternalLink } from 'lucide-react';
 
 const RAKIP_PARTILER: Party[] = [
   { id: '1', name: 'Adalet ve Kalkınma Partisi', shortName: 'AK Parti', leader: 'Recep Tayyip Erdoğan', color: '#ff7a00', ideology: Ideology.MUHAFAZAKAR, support: 0, budget: 15000000, isPlayer: false, allianceId: 'cumhur', relationshipWithPlayer: -20, basePopularity: 1.0, popularityTrends: [], tenureYears: 23 },
@@ -144,6 +144,7 @@ const INITIAL_ALLIANCES: Alliance[] = [
 export default function App() {
   const [screen, setScreen] = useState<'HOME' | 'CREATE' | 'MULTIPLAYER_LOBBY' | 'DASHBOARD' | 'ELECTION'>('HOME');
   const [showSaveLoad, setShowSaveLoad] = useState(false);
+  const [showAuthHelpModal, setShowAuthHelpModal] = useState(false);
   const [lang, setLang] = useState<Language>('TR');
   const [user, setUser] = useState<any | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -163,10 +164,17 @@ export default function App() {
   }, []);
 
   const handleGoogleLogin = async () => {
+    playSound.playClick();
+    const isIframe = window.self !== window.top;
+    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+    if (isIframe && isMobile) {
+      setShowAuthHelpModal(true);
+    }
     try {
       await loginWithGoogle();
     } catch (e) {
       console.error("Authorization failure: ", e);
+      setShowAuthHelpModal(true);
     }
   };
 
@@ -2141,6 +2149,66 @@ export default function App() {
             lang={lang}
             user={user}
           />
+        )}
+
+        {showAuthHelpModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in" id="auth_help_modal">
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-4 text-center">
+              <div className="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-2 border border-amber-500/20">
+                <AlertTriangle className="w-6 h-6" />
+              </div>
+              
+              <h3 className="text-base font-black text-slate-100 uppercase tracking-wide">
+                {lang === 'TR' ? 'Google Giriş Yardımı' : 'Google Sign-In Help'}
+              </h3>
+              
+              <div className="text-xs text-slate-300 leading-relaxed text-left space-y-2">
+                <p>
+                  {lang === 'TR' ? (
+                    <>
+                      Mobil tarayıcıların güvenlik politikaları nedeniyle, oyun bir <strong>iframe (önizleme çerçevesi)</strong> içerisinden oynandığında Google giriş ekranı boş sayfa (<code>about:blank</code>) olarak kalabilir.
+                    </>
+                  ) : (
+                    <>
+                      Mobile browser privacy features block Google Auth popups inside <strong>iframes</strong>, which often leaves a blank <code>about:blank</code> page.
+                    </>
+                  )}
+                </p>
+                <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
+                  <span className="text-[10px] uppercase font-black text-indigo-400 block tracking-wider">
+                    {lang === 'TR' ? '💡 Kesin ve Basit Çözüm:' : '💡 Easy Solution:'}
+                  </span>
+                  <p className="text-[11px] text-slate-200">
+                    {lang === 'TR' ? (
+                      'Oyunu doğrudan kendi başına tam sayfa olarak yeni bir sekmede açarak oynayın. Böylece Google girişi saniyeler içinde tamamlanacaktır!'
+                    ) : (
+                      'Simply open the game directly in a fresh browser tab to complete the Google login smoothly in seconds!'
+                    )}
+                  </p>
+                </div>
+              </div>
+
+              <div className="pt-2 flex flex-col gap-2">
+                <a
+                  href={window.location.href}
+                  target="_blank"
+                  referrerPolicy="no-referrer"
+                  rel="noopener noreferrer"
+                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer uppercase text-center"
+                >
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  {lang === 'TR' ? 'Oyun\'u Yeni Sekmede Aç' : 'Open Game in New Tab'}
+                </a>
+                
+                <button
+                  onClick={() => setShowAuthHelpModal(false)}
+                  className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs py-2 px-4 rounded-xl border border-slate-700/60 transition cursor-pointer"
+                >
+                  {lang === 'TR' ? 'Kapat' : 'Close'}
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {screen === 'ELECTION' && (

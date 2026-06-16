@@ -532,7 +532,7 @@ export default function MultiplayerLobby({
                   <button
                     onClick={handleLaunchCampaign}
                     disabled={!canStart}
-                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-850 disabled:text-slate-500 text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-600/10 transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"
+                    className="w-full py-3 bg-emerald-600 hover:bg-emerald-500 disabled:bg-slate-800/90 disabled:text-slate-300 disabled:border-slate-700 border border-transparent text-white font-black text-xs uppercase tracking-widest rounded-xl shadow-lg shadow-emerald-600/10 transition-all cursor-pointer flex items-center justify-center gap-2 active:scale-95"
                   >
                     <Plus className="w-4 h-4 text-emerald-200" />
                     {lang === 'TR' ? 'SEÇİM KAMPANYASINI BAŞLAT!' : 'KICKOFF MULTIPLAYER CAMPAIGN!'}
