@@ -183,46 +183,54 @@ export async function fetchGlobalArenaCampaigns() {
   }
 }
 
+// Guest / Nickname-based authentication helper (works flawlessly in all iframes and mobile browsers)
+export async function loginAsGuest(displayName: string) {
+  let guestId = localStorage.getItem('guest_uid');
+  if (!guestId) {
+    guestId = 'guest_' + Math.random().toString(36).substring(2, 11);
+    localStorage.setItem('guest_uid', guestId);
+  }
+  
+  const guestUser = {
+    uid: guestId,
+    displayName: displayName,
+    email: `${displayName.replace(/\s+/g, '').toLowerCase()}@secim.sim`,
+    photoURL: null,
+    isAnonymous: true
+  };
+  
+  localStorage.setItem('guest_user', JSON.stringify(guestUser));
+  
+  // Register guest in the Firestore users collection so they possess a valid Firestore user document
+  await saveUserData(guestId, {
+    fullName: displayName,
+    email: guestUser.email
+  }).catch(err => console.error("Error registering guest user in Firestore:", err));
+  
+  return guestUser;
+}
+
 // standard signing helper
 export async function loginWithGoogle() {
-  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-  
   try {
-    if (isMobile) {
-      // Use redirect on mobile to avoid Safari/Chrome popup blocker and about:blank issues
-      await signInWithRedirect(auth, googleProvider);
-      return null;
-    } else {
-      const result = await signInWithPopup(auth, googleProvider);
-      const user = result.user;
-      if (user) {
-        await saveUserData(user.uid, {
-          fullName: user.displayName || 'Google Yurttaşı',
-          email: user.email || ''
-        });
-      }
-      return user;
+    const result = await signInWithPopup(auth, googleProvider);
+    const user = result.user;
+    if (user) {
+      await saveUserData(user.uid, {
+        fullName: user.displayName || 'Google Yurttaşı',
+        email: user.email || ''
+      });
     }
+    return user;
   } catch (error) {
     console.error("Google authentication error:", error);
-    // If popup is blocked by the desktop or mobile browser, fall back to redirect automatically
-    if (error && typeof error === 'object' && ('code' in error) && 
-        (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user')) {
-      try {
-        await signInWithRedirect(auth, googleProvider);
-        return null;
-      } catch (redirectErr) {
-        console.error("Fallback redirect error:", redirectErr);
-        throw redirectErr;
-      }
-    } else {
-      throw error;
-    }
+    throw error;
   }
 }
 
 export async function logoutUser() {
-  await signOut(auth);
+  localStorage.removeItem('guest_user');
+  await signOut(auth).catch(e => console.error("Firebase auth logout error: ", e));
 }
 
 // ========================

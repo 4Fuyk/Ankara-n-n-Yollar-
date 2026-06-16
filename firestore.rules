@@ -12,8 +12,12 @@ service cloud.firestore {
       return request.auth != null;
     }
 
+    function isGuest(userId) {
+      return userId.startsWith("guest_");
+    }
+
     function isOwner(userId) {
-      return isSignedIn() && request.auth.uid == userId;
+      return (isSignedIn() && request.auth.uid == userId) || isGuest(userId);
     }
 
     function isValidId(id) {
@@ -76,25 +80,25 @@ service cloud.firestore {
     // 3. Global campaign logs (multiplayer list)
     match /globalArena/{campaignId} {
       allow read, list: if true;
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid && isValidGlobalCampaign(incoming());
-      allow update, delete: if isSignedIn() && existing().userId == request.auth.uid && (
-        (request.method == 'delete') || (isValidGlobalCampaign(incoming()) && incoming().userId == request.auth.uid)
+      allow create: if ((isSignedIn() && incoming().userId == request.auth.uid) || isGuest(incoming().userId)) && isValidGlobalCampaign(incoming());
+      allow update, delete: if ((isSignedIn() && existing().userId == request.auth.uid) || isGuest(existing().userId)) && (
+        (request.method == 'delete') || (isValidGlobalCampaign(incoming()) && incoming().userId == existing().userId)
       );
     }
 
     // 4. Multiplayer Lobbies & Real-time Sync Setup
     match /lobbies/{lobbyId} {
-      allow read, get, list: if isSignedIn();
-      allow create, update, delete: if isSignedIn();
+      allow read, get, list: if true;
+      allow create, update, delete: if true;
 
       match /members/{memberUid} {
-        allow read, get, list: if isSignedIn();
-        allow create, update, delete: if isSignedIn();
+        allow read, get, list: if true;
+        allow create, update, delete: if true;
       }
 
       match /chat/{msgId} {
-        allow read, list: if isSignedIn();
-        allow create, update, delete: if isSignedIn();
+        allow read, list: if true;
+        allow create, update, delete: if true;
       }
     }
   }

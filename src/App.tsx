@@ -25,8 +25,8 @@ import SaveLoadModal from './components/SaveLoadModal';
 import MultiplayerLobby from './components/MultiplayerLobby';
 import { playSound } from './utils/audio';
 import { Language, translations } from './utils/languages';
-import { loginWithGoogle, logoutUser, onAuthStateChanged, auth } from './utils/firebase';
-import { Landmark, ArrowRight, Sparkles, Trophy, Award, Volume2, VolumeX, Save, Cloud, LogIn, LogOut, Users, Globe, Sun, Moon, AlertTriangle, ExternalLink } from 'lucide-react';
+import { loginWithGoogle, logoutUser, onAuthStateChanged, auth, loginAsGuest } from './utils/firebase';
+import { Landmark, ArrowRight, Sparkles, Trophy, Award, Volume2, VolumeX, Save, Cloud, LogIn, LogOut, Users, Globe, Sun, Moon, AlertTriangle, ExternalLink, User, ShieldCheck } from 'lucide-react';
 
 const RAKIP_PARTILER: Party[] = [
   { id: '1', name: 'Adalet ve Kalkınma Partisi', shortName: 'AK Parti', leader: 'Recep Tayyip Erdoğan', color: '#ff7a00', ideology: Ideology.MUHAFAZAKAR, support: 0, budget: 15000000, isPlayer: false, allianceId: 'cumhur', relationshipWithPlayer: -20, basePopularity: 1.0, popularityTrends: [], tenureYears: 23 },
@@ -145,6 +145,7 @@ export default function App() {
   const [screen, setScreen] = useState<'HOME' | 'CREATE' | 'MULTIPLAYER_LOBBY' | 'DASHBOARD' | 'ELECTION'>('HOME');
   const [showSaveLoad, setShowSaveLoad] = useState(false);
   const [showAuthHelpModal, setShowAuthHelpModal] = useState(false);
+  const [guestInput, setGuestInput] = useState('');
   const [lang, setLang] = useState<Language>('TR');
   const [user, setUser] = useState<any | null>(null);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
@@ -155,10 +156,26 @@ export default function App() {
     localStorage.setItem('theme', theme);
   }, [theme]);
 
-  // Subscribe to Firebase Authentication state changes
+  // Subscribe to Firebase Authentication and local guest session state changes
   useEffect(() => {
+    const cachedGuest = localStorage.getItem('guest_user');
+    if (cachedGuest) {
+      try {
+        setUser(JSON.parse(cachedGuest));
+        return;
+      } catch (e) {
+        console.error("Failed to parse cached guest", e);
+      }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
-      setUser(firebaseUser);
+      if (firebaseUser) {
+        setUser(firebaseUser);
+      } else {
+        if (!localStorage.getItem('guest_user')) {
+          setUser(null);
+        }
+      }
     });
     return () => unsubscribe();
   }, []);
@@ -166,16 +183,45 @@ export default function App() {
   const handleGoogleLogin = async () => {
     playSound.playClick();
     try {
-      await loginWithGoogle();
+      const gUser = await loginWithGoogle();
+      if (gUser) {
+        setUser(gUser);
+        setShowAuthHelpModal(false);
+      }
     } catch (e) {
       console.error("Authorization failure: ", e);
-      setShowAuthHelpModal(true);
+      alert(lang === 'TR' 
+        ? "Google Girişi başarısız oldu (Tarayıcınız pop-up pencereleri engelliyor olabilir). Lütfen Aday Giriş Paneli'ndeki Hızlı Aday Girişi seçeneğini kullanın." 
+        : "Google Sign-In failed (Your browser may have blocked the popup). Please use the Quick Guest Login choice inside the Candidate Login Panel.");
+    }
+  };
+
+  const handleGuestLogin = async (nickname: string) => {
+    playSound.playClick();
+    const cleanName = nickname.trim();
+    if (!cleanName || cleanName.length === 0) {
+      alert(lang === 'TR' ? "Lütfen aday adınızı girin!" : "Please enter your candidate name!");
+      return;
+    }
+    if (cleanName.length > 50) {
+      alert(lang === 'TR' ? "Aday adı 50 karakterden uzun olamaz!" : "Candidate name cannot exceed 50 characters!");
+      return;
+    }
+
+    try {
+      const gUser = await loginAsGuest(cleanName);
+      setUser(gUser);
+      setShowAuthHelpModal(false);
+    } catch (e) {
+      console.error("Guest profile log in failed: ", e);
     }
   };
 
   const handleLogout = async () => {
+    playSound.playClick();
     try {
       await logoutUser();
+      setUser(null);
     } catch (e) {
       console.error("Logout failure: ", e);
     }
@@ -1963,7 +2009,9 @@ export default function App() {
               )}
               <div className="text-left hidden xs:block">
                 <span className="text-[10px] text-slate-200 font-extrabold max-w-[120px] block truncate">{user.displayName || 'Lider'}</span>
-                <span className="text-[8px] text-emerald-400 block font-bold uppercase tracking-wider">● Bulut Senkronize</span>
+                <span className="text-[8px] text-emerald-400 block font-bold uppercase tracking-wider">
+                  {user.isAnonymous ? '● Yerel Profil (Bulut Aktif)' : '● Bulut Senkronize'}
+                </span>
               </div>
               <button
                 onClick={handleLogout}
@@ -1975,10 +2023,10 @@ export default function App() {
             </div>
           ) : (
             <button
-              onClick={handleGoogleLogin}
-              className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs py-2 px-4 rounded-xl shadow-lg shadow-indigo-600/10 cursor-pointer active:scale-95 transition flex items-center gap-1.5 uppercase font-sans tracking-wide shrink-0 whitespace-nowrap"
+              onClick={() => { playSound.playClick(); setShowAuthHelpModal(true); }}
+              className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs py-2 px-4 rounded-xl shadow-lg shadow-indigo-600/10 cursor-pointer active:scale-95 transition flex items-center gap-1.5 uppercase font-sans tracking-wide shrink-0 whitespace-nowrap animate-slide-up"
             >
-              <LogIn className="w-3.5 h-3.5 text-indigo-200" /> Google Giriş
+              <LogIn className="w-3.5 h-3.5 text-indigo-200 animate-pulse" /> {lang === 'TR' ? 'Giriş Yap / Profil Seç' : 'Log In / Select Profile'}
             </button>
           )}
 
@@ -2148,58 +2196,93 @@ export default function App() {
 
         {showAuthHelpModal && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-fade-in" id="auth_help_modal">
-            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-md w-full p-6 shadow-2xl relative space-y-4 text-center">
-              <div className="w-12 h-12 bg-amber-500/10 text-amber-500 rounded-full flex items-center justify-center mx-auto mb-2 border border-amber-500/20">
-                <AlertTriangle className="w-6 h-6" />
+            <div className="bg-slate-900 border border-slate-800 rounded-2xl max-w-lg w-full p-6 shadow-2xl relative space-y-6 text-left">
+              
+              {/* Header */}
+              <div className="flex items-center justify-between border-b border-slate-800 pb-3">
+                <div className="flex items-center gap-2">
+                  <User className="w-5 h-5 text-indigo-400" />
+                  <h3 className="text-sm font-black text-slate-100 uppercase tracking-widest font-mono">
+                    {lang === 'TR' ? 'Siyasi Aday Giriş Paneli' : 'Political Candidate Login'}
+                  </h3>
+                </div>
+                <button 
+                  onClick={() => { playSound.playClick(); setShowAuthHelpModal(false); }}
+                  className="text-slate-400 hover:text-white font-bold text-xs cursor-pointer"
+                >
+                  ✕
+                </button>
               </div>
-              
-              <h3 className="text-base font-black text-slate-100 uppercase tracking-wide">
-                {lang === 'TR' ? 'Google Giriş Yardımı' : 'Google Sign-In Help'}
-              </h3>
-              
-              <div className="text-xs text-slate-300 leading-relaxed text-left space-y-2">
-                <p>
-                  {lang === 'TR' ? (
-                    <>
-                      Mobil tarayıcıların güvenlik politikaları nedeniyle, oyun bir <strong>iframe (önizleme çerçevesi)</strong> içerisinden oynandığında Google giriş ekranı boş sayfa (<code>about:blank</code>) olarak kalabilir.
-                    </>
-                  ) : (
-                    <>
-                      Mobile browser privacy features block Google Auth popups inside <strong>iframes</strong>, which often leaves a blank <code>about:blank</code> page.
-                    </>
-                  )}
-                </p>
-                <div className="p-3 bg-slate-950/80 rounded-xl border border-slate-800 space-y-1">
-                  <span className="text-[10px] uppercase font-black text-indigo-400 block tracking-wider">
-                    {lang === 'TR' ? '💡 Kesin ve Basit Çözüm:' : '💡 Easy Solution:'}
-                  </span>
-                  <p className="text-[11px] text-slate-200">
-                    {lang === 'TR' ? (
-                      'Oyunu doğrudan kendi başına tam sayfa olarak yeni bir sekmede açarak oynayın. Böylece Google girişi saniyeler içinde tamamlanacaktır!'
-                    ) : (
-                      'Simply open the game directly in a fresh browser tab to complete the Google login smoothly in seconds!'
-                    )}
+
+              {/* Informative Help Alert */}
+              <p className="text-[11px] text-slate-400 leading-relaxed bg-slate-950/40 p-3 rounded-xl border border-slate-850">
+                {lang === 'TR' ? (
+                  "Mobil tarayıcılar ve iframe içi güvenlik kısıtlamaları nedeniyle Google Girişi sorun çıkartabilir. Bu yüzden pop-up, şifre ve kısıtlama içermeyen %100 pürüzsüz 'Hızlı Aday Girişi' yöntemini geliştirdik! Arkadaşlarınızla aynı anda hem cepten hem bilgisayardan oynayabilirsiniz."
+                ) : (
+                  "Due to strict browser policies inside iframes, Google Login can be blocked on some devices. We recommend the 100% stable 'Quick Candidate Login' which has zero popups, zero passwords, and works perfectly on all devices (mobile or PC) simultaneously!"
+                )}
+              </p>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-6 pt-1">
+                {/* Option 1: Quick Profile (Recommended) */}
+                <div className="space-y-3 bg-slate-950/40 p-4 rounded-xl border border-indigo-900/30">
+                  <div className="flex items-center gap-1.5 text-xs font-black uppercase text-indigo-400">
+                    <ShieldCheck className="w-4 h-4 text-emerald-400 animate-pulse" />
+                    <span>{lang === 'TR' ? '1. Hızlı Aday Girişi' : '1. Quick Candidate Login'}</span>
+                  </div>
+                  <p className="text-[10px] text-slate-400">
+                    {lang === 'TR' ? 'İstediğiniz bir unvan veya isim girin, şifresiz anında bağlanın.' : 'Instantly enter any candidate nickname, secure and passwordless.'}
                   </p>
+                  
+                  <div className="space-y-2">
+                    <input
+                      type="text"
+                      value={guestInput}
+                      onChange={(e) => setGuestInput(e.target.value)}
+                      placeholder={lang === 'TR' ? 'Aday İsmi (Örn: Mansur, Recep...)' : 'Candidate Name (e.g., Mansur, Recep...)'}
+                      className="w-full bg-slate-900 border border-slate-800 text-slate-100 rounded-xl px-3 py-2 text-xs font-bold focus:border-indigo-500 focus:outline-none"
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') handleGuestLogin(guestInput);
+                      }}
+                    />
+                    <button
+                      onClick={() => handleGuestLogin(guestInput)}
+                      className="w-full bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs py-2 rounded-xl transition active:scale-95 cursor-pointer uppercase flex items-center justify-center gap-1 shadow-lg shadow-indigo-600/10"
+                    >
+                      <ArrowRight className="w-3.5 h-3.5" />
+                      {lang === 'TR' ? 'Hızlı Giriş Yap' : 'Quick Sign-In'}
+                    </button>
+                  </div>
+                </div>
+
+                {/* Option 2: Google Sign In */}
+                <div className="space-y-3 bg-slate-950/20 p-4 rounded-xl border border-slate-800 flex flex-col justify-between">
+                  <div className="space-y-1.5">
+                    <div className="text-xs font-black uppercase text-slate-400">
+                      <span>{lang === 'TR' ? '2. Google Hesabı ile Bağlan' : '2. Connect Google Account'}</span>
+                    </div>
+                    <p className="text-[10px] text-slate-400">
+                      {lang === 'TR' ? 'Lokal kaydedilen oyunları kalıcı bulut hesabınıza bağlamak için kullanın (Bilgisayarlar içindir).' : 'Use your permanent Google Profile to sync cloud saves and campaigns (Recommended for laptop browsers).'}
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={handleGoogleLogin}
+                    className="w-full mt-4 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-slate-700 font-bold text-xs py-2 px-3 rounded-xl transition cursor-pointer flex items-center justify-center gap-1.5 active:scale-95 shadow-md"
+                  >
+                    <LogIn className="w-3.5 h-3.5 text-indigo-400" />
+                    {lang === 'TR' ? 'Google ile Bağlan' : 'Connect with Google'}
+                  </button>
                 </div>
               </div>
 
-              <div className="pt-2 flex flex-col gap-2">
-                <a
-                  href={window.location.href}
-                  target="_blank"
-                  referrerPolicy="no-referrer"
-                  rel="noopener noreferrer"
-                  className="bg-indigo-600 hover:bg-indigo-500 text-white font-black text-xs py-2.5 px-4 rounded-xl shadow-lg shadow-indigo-600/10 flex items-center justify-center gap-1.5 transition active:scale-95 cursor-pointer uppercase text-center"
-                >
-                  <ExternalLink className="w-3.5 h-3.5" />
-                  {lang === 'TR' ? 'Oyun\'u Yeni Sekmede Aç' : 'Open Game in New Tab'}
-                </a>
-                
+              {/* Close Button */}
+              <div className="border-t border-slate-800 pt-4 flex justify-end">
                 <button
                   onClick={() => setShowAuthHelpModal(false)}
-                  className="bg-slate-800 hover:bg-slate-750 text-slate-300 font-bold text-xs py-2 px-4 rounded-xl border border-slate-700/60 transition cursor-pointer"
+                  className="bg-slate-850 hover:bg-slate-800 text-slate-400 hover:text-slate-200 font-bold text-xs py-2 px-5 rounded-xl border border-slate-800 transition cursor-pointer"
                 >
-                  {lang === 'TR' ? 'Kapat' : 'Close'}
+                  {lang === 'TR' ? 'Vazgeç' : 'Cancel'}
                 </button>
               </div>
             </div>
