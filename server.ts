@@ -110,6 +110,110 @@ Kurallar:
     }
   });
 
+  // Google Cloud OAuth configuration & URL generator route
+  app.get("/api/auth/google/config", (req, res) => {
+    res.json({
+      configured: !!(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
+      clientId: process.env.GOOGLE_CLIENT_ID || ""
+    });
+  });
+
+  app.get("/api/auth/google/url", (req, res) => {
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    if (!clientId) {
+      return res.status(400).json({ error: "Google Client ID is not configured." });
+    }
+
+    const host = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    const redirectUri = `${host}/api/auth/google/callback`;
+
+    const params = new URLSearchParams({
+      client_id: clientId,
+      redirect_uri: redirectUri,
+      response_type: 'code',
+      scope: 'openid profile email',
+      prompt: 'select_account'
+    });
+
+    res.json({ url: `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}` });
+  });
+
+  // Google Cloud OAuth callback to exchange authorization code for real idTokens
+  app.get("/api/auth/google/callback", async (req, res) => {
+    const { code } = req.query;
+    if (!code) {
+      return res.status(400).send("Authorization code is missing.");
+    }
+
+    const clientId = process.env.GOOGLE_CLIENT_ID;
+    const clientSecret = process.env.GOOGLE_CLIENT_SECRET;
+
+    if (!clientId || !clientSecret) {
+      return res.status(500).send("Google OAuth secrets are not configured in system environment.");
+    }
+
+    const host = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+    const redirectUri = `${host}/api/auth/google/callback`;
+
+    try {
+      const params = new URLSearchParams();
+      params.append("client_id", clientId);
+      params.append("client_secret", clientSecret);
+      params.append("code", code as string);
+      params.append("redirect_uri", redirectUri);
+      params.append("grant_type", "authorization_code");
+
+      const tokenResponse = await fetch("https://oauth2.googleapis.com/token", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded"
+        },
+        body: params.toString()
+      });
+
+      if (!tokenResponse.ok) {
+        const errText = await tokenResponse.text();
+        console.error("Token exchange failed:", errText);
+        return res.status(500).send(`Token exchange failed: ${errText}`);
+      }
+
+      const tokenData: any = await tokenResponse.json();
+
+      res.send(`
+        <html>
+          <head>
+            <title>Giriş Yapılıyor / Signing In</title>
+            <meta charset="utf-8" />
+          </head>
+          <body style="background: #0f172a; color: #f1f5f9; display: flex; align-items: center; justify-content: center; height: 100vh; font-family: sans-serif; margin: 0; padding: 20px; box-sizing: border-box;">
+            <div style="text-align: center; max-width: 400px; background: #1e293b; padding: 30px; border-radius: 12px; border: 1px solid #334155; box-shadow: 0 10px 25px -5px rgba(0,0,0,0.3);">
+              <div style="display: inline-block; width: 48px; height: 48px; background: #22c55e; border-radius: 50%; color: white; line-height: 48px; font-size: 24px; font-weight: bold; margin-bottom: 20px; text-align: center;">✓</div>
+              <h2 style="margin: 0 0 10px 0; font-size: 20px; font-weight: bold; color: #f8fafc;">Giriş Başarılı!</h2>
+              <p style="color: #94a3b8; font-size: 14px; margin: 0 0 20px 0; line-height: 1.5;">Kampanya ve bulut kayıtlarınız başarıyla bağlandı. Bu pencere otomatik olarak kapanacaktır.</p>
+              <h2 style="margin: 30px 0 10px 0; font-size: 20px; font-weight: bold; color: #f8fafc; border-top: 1px solid #334155; padding-top: 20px;">Authenticated!</h2>
+              <p style="color: #94a3b8; font-size: 14px; margin: 0; line-height: 1.5;">Election profiles synchronized. This window will close automatically.</p>
+            </div>
+            <script>
+              if (window.opener) {
+                window.opener.postMessage({
+                  type: "GOOGLE_OAUTH_SUCCESS",
+                  idToken: ${JSON.stringify(tokenData.id_token)},
+                  accessToken: ${JSON.stringify(tokenData.access_token)}
+                }, "*");
+                window.close();
+              } else {
+                window.location.href = "/";
+              }
+            </script>
+          </body>
+        </html>
+      `);
+    } catch (error: any) {
+      console.error("Callback route error:", error);
+      res.status(500).send(`Authentication error: ${error?.message || String(error)}`);
+    }
+  });
+
   // Simulated Fallback Generator (custom response logic for rich feedback even offline)
   function getSimulatedResponse(party: string, leader: string, player: string, msg: string, rel: number): string {
     const textLC = msg.toLowerCase();

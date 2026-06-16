@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged, signInWithCredential } from 'firebase/auth';
 import { 
   getFirestore, 
   doc, 
@@ -213,6 +213,73 @@ export async function loginAsGuest(displayName: string) {
 // Resilient Google login helper (Supports popup and automatic redirect fallback for tablets, phones, and strict browser sandboxes)
 export async function loginWithGoogle() {
   try {
+    // 1. Check if the server has GOOGLE_CLIENT_ID & GOOGLE_CLIENT_SECRET configured
+    const configRes = await fetch("/api/auth/google/config").catch(() => null);
+    const config = configRes ? await configRes.json().catch(() => null) : null;
+
+    if (config && config.configured) {
+      console.log("[Firebase Auth] Custom Google Cloud OAuth is active and configured. Directing to secure popup flow.");
+      
+      const urlRes = await fetch("/api/auth/google/url");
+      const { url } = await urlRes.json();
+
+      const authWindow = window.open(
+        url,
+        'google_oauth_popup',
+        'width=600,height=700,status=no,resizable=yes,scrollbars=yes'
+      );
+
+      if (!authWindow) {
+        throw new Error("POPUP_BLOCKED");
+      }
+
+      return new Promise<any>((resolve, reject) => {
+        let checkClosedInterval: any;
+        
+        const handleMessage = async (event: MessageEvent) => {
+          const origin = event.origin;
+          if (!origin.endsWith('.run.app') && !origin.includes('localhost')) {
+            return;
+          }
+
+          if (event.data?.type === 'GOOGLE_OAUTH_SUCCESS') {
+            const { idToken } = event.data;
+            try {
+              const credential = GoogleAuthProvider.credential(idToken);
+              const result = await signInWithCredential(auth, credential);
+              const user = result.user;
+              if (user) {
+                await saveUserData(user.uid, {
+                  fullName: user.displayName || 'Google Yurttaşı',
+                  email: user.email || ''
+                });
+              }
+              cleanup();
+              resolve(user);
+            } catch (authError) {
+              cleanup();
+              reject(authError);
+            }
+          }
+        };
+
+        const cleanup = () => {
+          window.removeEventListener('message', handleMessage);
+          if (checkClosedInterval) clearInterval(checkClosedInterval);
+        };
+
+        window.addEventListener('message', handleMessage);
+
+        checkClosedInterval = setInterval(() => {
+          if (authWindow.closed) {
+            cleanup();
+            reject(new Error("POPUP_CLOSED_BY_USER"));
+          }
+        }, 1000);
+      });
+    }
+
+    console.log("[Firebase Auth] Custom Google Cloud OAuth not configured. Falling back to default Web SDK popups.");
     // Check if user is on a mobile/tablet touch device where popups are blocked/problematic by default
     const isMobile = typeof navigator !== 'undefined' && 
       (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
@@ -235,6 +302,9 @@ export async function loginWithGoogle() {
     }
     return user;
   } catch (error: any) {
+    if (error?.message === "POPUP_BLOCKED" || error?.message === "POPUP_CLOSED_BY_USER") {
+      throw error;
+    }
     console.warn("[Firebase Auth] Popup authentication failed or blocked. Trying redirect flow fallback...", error);
     
     // Fall back to redirect-based authentication flow if popup is blocked, cancelled, or tracking prevention blocks cookie writes

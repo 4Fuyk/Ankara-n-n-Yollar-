@@ -190,11 +190,19 @@ export default function App() {
       } else {
         console.log("[App] Google redirect authentication flow initiated safely. Page transition pending...");
       }
-    } catch (e) {
+    } catch (e: any) {
       console.error("Authorization failure: ", e);
-      alert(lang === 'TR' 
-        ? "Google Girişi başlatılamadı. Tarayıcınız yönlendirmeleri kısıtlıyor olabilir. Lütfen 'Hızlı Aday Girişi' seçeneğini kullanmayı deneyin." 
-        : "Google Sign-In could not be started. Your browser settings might be blocking redirects. Please try using the 'Quick Candidate Login' instead.");
+      if (e?.message === "POPUP_BLOCKED") {
+        alert(lang === 'TR' 
+          ? "Tarayıcınız Google Giriş penceresini engelledi! Lütfen adres çubuğundaki pop-up engelleyicisini pasif yapıp tekrar deneyin."
+          : "Your browser blocked the Google Login popup! Please disable the popup blocker in your address bar and try again.");
+      } else if (e?.message === "POPUP_CLOSED_BY_USER") {
+        console.log("[App] User closed the auth window before completion.");
+      } else {
+        alert(lang === 'TR' 
+          ? "Google Girişi başlatılamadı. Tarayıcınız yönlendirmeleri kısıtlıyor olabilir. Lütfen 'Hızlı Aday Girişi' seçeneğini kullanmayı deneyin." 
+          : "Google Sign-In could not be started. Your browser settings might be blocking redirects. Please try using the 'Quick Candidate Login' instead.");
+      }
     }
   };
 
