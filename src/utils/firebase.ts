@@ -210,9 +210,21 @@ export async function loginAsGuest(displayName: string) {
   return guestUser;
 }
 
-// standard signing helper
+// Resilient Google login helper (Supports popup and automatic redirect fallback for tablets, phones, and strict browser sandboxes)
 export async function loginWithGoogle() {
   try {
+    // Check if user is on a mobile/tablet touch device where popups are blocked/problematic by default
+    const isMobile = typeof navigator !== 'undefined' && 
+      (/Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent) || 
+       (navigator.maxTouchPoints && navigator.maxTouchPoints > 2));
+       
+    if (isMobile) {
+      console.log("[Firebase Auth] Mobile platform detected. Invoking top-level signInWithRedirect.");
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    }
+
+    console.log("[Firebase Auth] Desktop platform detected. Initiating signInWithPopup.");
     const result = await signInWithPopup(auth, googleProvider);
     const user = result.user;
     if (user) {
@@ -222,9 +234,17 @@ export async function loginWithGoogle() {
       });
     }
     return user;
-  } catch (error) {
-    console.error("Google authentication error:", error);
-    throw error;
+  } catch (error: any) {
+    console.warn("[Firebase Auth] Popup authentication failed or blocked. Trying redirect flow fallback...", error);
+    
+    // Fall back to redirect-based authentication flow if popup is blocked, cancelled, or tracking prevention blocks cookie writes
+    try {
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    } catch (redirectError) {
+      console.error("[Firebase Auth] Cumulative Redirect fallback failure:", redirectError);
+      throw redirectError;
+    }
   }
 }
 

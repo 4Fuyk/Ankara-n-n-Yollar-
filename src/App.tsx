@@ -187,12 +187,14 @@ export default function App() {
       if (gUser) {
         setUser(gUser);
         setShowAuthHelpModal(false);
+      } else {
+        console.log("[App] Google redirect authentication flow initiated safely. Page transition pending...");
       }
     } catch (e) {
       console.error("Authorization failure: ", e);
       alert(lang === 'TR' 
-        ? "Google Girişi başarısız oldu (Tarayıcınız pop-up pencereleri engelliyor olabilir). Lütfen Aday Giriş Paneli'ndeki Hızlı Aday Girişi seçeneğini kullanın." 
-        : "Google Sign-In failed (Your browser may have blocked the popup). Please use the Quick Guest Login choice inside the Candidate Login Panel.");
+        ? "Google Girişi başlatılamadı. Tarayıcınız yönlendirmeleri kısıtlıyor olabilir. Lütfen 'Hızlı Aday Girişi' seçeneğini kullanmayı deneyin." 
+        : "Google Sign-In could not be started. Your browser settings might be blocking redirects. Please try using the 'Quick Candidate Login' instead.");
     }
   };
 
