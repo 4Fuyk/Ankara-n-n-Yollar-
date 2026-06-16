@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
+import { getAuth, GoogleAuthProvider, signInWithPopup, signInWithRedirect, getRedirectResult, signOut, onAuthStateChanged } from 'firebase/auth';
 import { 
   getFirestore, 
   doc, 
@@ -25,6 +25,19 @@ export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 export { onAuthStateChanged };
+
+// Process Google Authentication redirect results on page load (essential for mobile browsers)
+getRedirectResult(auth).then(async (result) => {
+  if (result?.user) {
+    const user = result.user;
+    await saveUserData(user.uid, {
+      fullName: user.displayName || 'Google Yurttaşı',
+      email: user.email || ''
+    }).catch(err => console.error("Error saving redirect user data:", err));
+  }
+}).catch(err => {
+  console.error("Firebase redirect resolution error:", err);
+});
 
 enum OperationType {
   CREATE = 'create',
@@ -172,19 +185,39 @@ export async function fetchGlobalArenaCampaigns() {
 
 // standard signing helper
 export async function loginWithGoogle() {
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+  
   try {
-    const result = await signInWithPopup(auth, googleProvider);
-    const user = result.user;
-    if (user) {
-      await saveUserData(user.uid, {
-        fullName: user.displayName || 'Google Yurttaşı',
-        email: user.email || ''
-      });
+    if (isMobile) {
+      // Use redirect on mobile to avoid Safari/Chrome popup blocker and about:blank issues
+      await signInWithRedirect(auth, googleProvider);
+      return null;
+    } else {
+      const result = await signInWithPopup(auth, googleProvider);
+      const user = result.user;
+      if (user) {
+        await saveUserData(user.uid, {
+          fullName: user.displayName || 'Google Yurttaşı',
+          email: user.email || ''
+        });
+      }
+      return user;
     }
-    return user;
   } catch (error) {
     console.error("Google authentication error:", error);
-    throw error;
+    // If popup is blocked by the desktop or mobile browser, fall back to redirect automatically
+    if (error && typeof error === 'object' && ('code' in error) && 
+        (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user')) {
+      try {
+        await signInWithRedirect(auth, googleProvider);
+        return null;
+      } catch (redirectErr) {
+        console.error("Fallback redirect error:", redirectErr);
+        throw redirectErr;
+      }
+    } else {
+      throw error;
+    }
   }
 }
 

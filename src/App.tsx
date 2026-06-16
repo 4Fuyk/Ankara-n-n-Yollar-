@@ -165,11 +165,6 @@ export default function App() {
 
   const handleGoogleLogin = async () => {
     playSound.playClick();
-    const isIframe = window.self !== window.top;
-    const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-    if (isIframe && isMobile) {
-      setShowAuthHelpModal(true);
-    }
     try {
       await loginWithGoogle();
     } catch (e) {
